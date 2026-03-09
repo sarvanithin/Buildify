@@ -1,0 +1,199 @@
+{
+  "chunks": [
+    {
+      "id": "lr_dim",
+      "category": "living_room",
+      "text": "US residential living room dimensions: minimum 12x16ft, standard 14x18ft for 3-bed homes, large 16x22ft for open-concept. Aspect ratio ideally 3:4 or 4:5. Minimum 150 sq ft per IRC. Always faces front of house for natural light. Must accommodate 8-10ft sofa wall and conversation area. Ceiling height 9ft standard, 10-12ft vaulted in premium homes."
+    },
+    {
+      "id": "kit_dim",
+      "category": "kitchen",
+      "text": "US kitchen layout: minimum 8x10ft galley, 12x12ft L-shape, 14x16ft island kitchen. Kitchen work triangle (sink-refrigerator-stove) perimeter 12-26ft. Minimum 42in aisle single-cook, 48in double-cook. Counter depth 25in, upper cabinet height starts at 54in above floor. Always directly adjacent to dining area. Natural light from window above sink preferred."
+    },
+    {
+      "id": "dining_dim",
+      "category": "dining_room",
+      "text": "US dining room: minimum 11x11ft for 4-person table, 12x14ft for 6-person, 14x16ft for 8-person formal dining. Round table needs 12x12ft minimum. Must have direct access to kitchen (shared wall or pass-through). Formal dining rooms are separate from kitchen; casual dining areas are open to kitchen. 3ft clearance around all table sides."
+    },
+    {
+      "id": "master_dim",
+      "category": "master_bedroom",
+      "text": "US primary bedroom (master): minimum 11x12ft per IRC, standard 13x15ft, premium 14x18ft. Should be away from street noise (rear or side). Ceiling height 9ft minimum. Must have at least one window. Walk-in closet minimum 5x7ft, ideally 7x9ft. En-suite bathroom directly accessible via interior door. Often positioned at rear of house for privacy."
+    },
+    {
+      "id": "bed_dim",
+      "category": "bedroom",
+      "text": "US secondary bedroom minimum 10x10ft per IRC (100 sq ft). Standard 11x12ft for children, 12x13ft for guest. Must have at least one egress window (min 20in wide, 24in tall, 5.7 sq ft opening). Reach-in closet minimum 24in deep x 36in wide. Bedrooms should cluster together in a bedroom wing, away from kitchen and living areas for noise separation."
+    },
+    {
+      "id": "bath_full",
+      "category": "bathroom",
+      "text": "US full bathroom (tub+toilet+sink): minimum 5x8ft, standard 6x9ft. Half bath: minimum 3x6ft. Master en-suite: minimum 7x9ft, standard 9x11ft with dual vanity. Minimum clearance: 15in from toilet centerline to wall/obstacle, 21in in front of toilet. Vanity width 24in minimum, 60in preferred for double sink. Wet areas require GFCI outlets."
+    },
+    {
+      "id": "garage_dim",
+      "category": "garage",
+      "text": "US attached garage dimensions: 1-car minimum 10x18ft interior, standard 12x22ft. 2-car minimum 20x20ft, standard 24x24ft. 3-car 32x24ft. Garage door width: 9ft single, 16ft double, 9ft per car triple. Must have fire-rated wall/door separating garage from living space. Typically positioned at front or side of house. Floor is concrete, sloped for drainage."
+    },
+    {
+      "id": "hallway_dim",
+      "category": "hallway",
+      "text": "US residential hallway minimum width 36in (3ft) per IRC, preferred 42-48in. Main corridor 48in. Hallway length should be minimized — maximum 20% of total floor area for circulation. Dead-end hallways over 20ft are poor design. Each bedroom must be accessible from hallway. Hallway lighting: minimum 1 fixture per 10ft length. Linen closet often located in bedroom hallway."
+    },
+    {
+      "id": "foyer_dim",
+      "category": "foyer",
+      "text": "US entry foyer standard 6x8ft, premium 10x12ft. Coat closet minimum 2x4ft adjacent to entry. Should provide visual privacy from main living areas when door opens. Transition from foyer to living space via archway or partial wall is preferred over direct open view. Often includes hard flooring (tile or hardwood) to transition from outside."
+    },
+    {
+      "id": "office_dim",
+      "category": "home_office",
+      "text": "US home office minimum 9x10ft for single workstation, 11x12ft for dual. Natural light from window critical — north-facing preferred to avoid screen glare. Minimum 2 dedicated circuits for electronics. Soundproofing from living areas desirable. Often located near front of house or off main hallway, separate from bedroom wing for business visitor access."
+    },
+    {
+      "id": "laundry_dim",
+      "category": "laundry",
+      "text": "US laundry room: minimum 5.5x7ft for side-by-side machines, 3.5x7ft for stacked. Standard 8x8ft with folding counter and utility sink. Laundry closet 3x3ft minimum. Ideally located near bedrooms (upper floor) or rear of house near bedrooms (single story). Requires 220V outlet, gas hookup, floor drain, and exterior vent for dryer."
+    },
+    {
+      "id": "open_plan",
+      "category": "layout",
+      "text": "US open-concept great room design: combines living, kitchen, dining in one space minimum 28x24ft. Kitchen island serves as transition between kitchen zone and living zone (4x8ft typical). Ceiling height 9-12ft creates spacious feel. Sightlines from kitchen to living important for family supervision. Great room typically positioned at rear of house opening to outdoor space."
+    },
+    {
+      "id": "bedroom_wing",
+      "category": "layout",
+      "text": "US residential bedroom wing layout: all bedrooms cluster together separated from living areas by hallway or door. Master bedroom at end of wing for maximum privacy. Children bedrooms closer to shared bathroom. Guest bedroom near entry or separate wing in larger homes. Bedroom wing typically at rear of house or side opposite garage. Sound separation from kitchen and garage is critical."
+    },
+    {
+      "id": "traffic_flow",
+      "category": "layout",
+      "text": "US residential traffic flow principles: entry should connect directly to main living area without crossing private zones. Bedroom hallway should not be thoroughfare for main traffic. Kitchen should connect to dining and have secondary access to garage for groceries. Outdoor living spaces (patio/deck) accessible from main living area and kitchen. Two points of egress from all sleeping areas."
+    },
+    {
+      "id": "modern_style",
+      "category": "style",
+      "text": "Modern US residential style: open floor plan with great room concept. Minimal interior walls. Flat or low-pitch roof (2:12 to 4:12). Large windows, often floor-to-ceiling. Clerestory windows for upper light. Attached 2-car garage integrated into facade. Primary suite with spa bath. Home office or flex room standard. 9-10ft ceilings. Outdoor living space (covered deck or patio) accessed from main living area."
+    },
+    {
+      "id": "traditional_style",
+      "category": "style",
+      "text": "Traditional US residential style: formal entry foyer with coat closet. Separate formal living room and formal dining room at front. Family room open to kitchen at rear. Primary suite master bedroom at rear of house. Bedrooms clustered in hall. Laundry on main floor near garage or kitchen. Gable roof 8:12 to 12:12 pitch. Attached 2-car side-entry garage. 9ft ceilings main floor, 8ft upper floor."
+    },
+    {
+      "id": "craftsman_style",
+      "category": "style",
+      "text": "Craftsman bungalow US style: covered front porch 6-8ft deep, full house width. Open living-dining plan. Kitchen with breakfast nook. Mudroom entry from garage. Primary bedroom with large closet. Built-in storage throughout. Low-pitched roof 4:12 to 6:12 with wide overhangs. Natural materials: stone veneer base, fiber cement siding. 9ft ceilings with boxed beams in living area."
+    },
+    {
+      "id": "ranch_style",
+      "category": "style",
+      "text": "Ranch home US style: single story, elongated rectangular or L-shape footprint. Attached 2-car garage at front or side. Open living-dining-kitchen layout. Primary bedroom at one end, secondary bedrooms at other end for privacy. Sliding glass doors to rear patio. Low roof pitch 3:12 to 5:12. Wide lot frontage typical (60-80ft). All rooms accessible without stairs."
+    },
+    {
+      "id": "farmhouse_style",
+      "category": "style",
+      "text": "Modern farmhouse US style: large covered wraparound or front porch. Mudroom/laundry entry essential from garage. Large open kitchen with farmhouse sink and island. Shiplap accent walls. Primary suite with freestanding tub, walk-in shower, dual vanity. Bonus room or loft over garage. Mixed metal fixtures (black and brushed brass). Board-and-batten exterior siding. 9-10ft ceilings."
+    },
+    {
+      "id": "primary_suite",
+      "category": "primary_suite",
+      "text": "US primary suite configuration: bedroom 13x15ft minimum. Walk-in closet directly off bedroom, minimum 7x8ft. En-suite bath accessed from bedroom, minimum 9x10ft with dual vanity, walk-in shower, soaking tub. Water closet (toilet room) 3x5ft separate from vanity area in premium designs. Linen closet in bath. Double doors to bedroom preferred. Located at rear of house away from street."
+    },
+    {
+      "id": "outdoor_patio",
+      "category": "outdoor",
+      "text": "US residential rear patio: minimum 12x16ft, standard 16x20ft for outdoor dining and seating. Covered patio (pergola or solid roof) 12x16ft minimum. Accessed from kitchen/dining via sliding or French doors AND from living area. Located at rear of house for privacy. Concrete, paver, or composite decking. Outdoor kitchen area 4x12ft. Fire pit area 12x12ft. 3ft path around perimeter."
+    },
+    {
+      "id": "outdoor_deck",
+      "category": "outdoor",
+      "text": "US residential deck: attached to rear of house, minimum 10x14ft, standard 14x20ft. Accessed from living room via sliding door and from kitchen/dining. Decking material: pressure-treated wood, composite, or cedar. Maximum 30in above grade without railings. Railings required above 30in (36in height minimum per IRC). Stairs to grade required. Structural posts 6x6ft minimum, 8ft on center."
+    },
+    {
+      "id": "natural_light",
+      "category": "principles",
+      "text": "US residential natural light standards: every habitable room requires at least one window with glazing area minimum 8% of floor area (IRC). Bedroom requires egress window. Living and dining rooms benefit from south and east-facing windows. Kitchen: window above sink mandatory. Primary bedroom: windows on two walls ideal. Skylights count as window area. Bay windows expand sill space."
+    },
+    {
+      "id": "structural_grid",
+      "category": "principles",
+      "text": "US residential structural grid: wood frame construction uses 2x6 studs 16in on center. Rooms align to a 2ft module grid for efficiency (12, 14, 16ft widths). Load-bearing walls run perpendicular to floor joists. Joists span maximum 14ft with 2x10, 16ft with engineered lumber. Beam required when removing load-bearing walls. Exterior walls 6in thick, interior 4.5in thick. Garage typically slab-on-grade."
+    },
+    {
+      "id": "bldg_code",
+      "category": "code",
+      "text": "US IRC residential building code minimums: habitable room minimum 70 sq ft, 7ft ceiling height. Bedroom minimum 70 sq ft, 7ft ceiling. Hallway minimum 36in wide. Stair width minimum 36in, riser 7.75in max, tread 10in min. Bathroom: toilet 30in clear space, 21in in front. Kitchen: minimum 30in clear counter space on each side of sink. Two exits from dwelling required."
+    },
+    {
+      "id": "garage_layout",
+      "category": "garage",
+      "text": "US attached garage layout: always positioned at front or side of house adjacent to kitchen for grocery unloading. Door from garage to house: fire-rated solid wood or 20-minute rated, self-closing, self-latching. Mudroom or laundry room commonly placed between garage and kitchen. Garage floor 4in lower than house floor as barrier. Storage shelving on side walls. Utility sink preferred."
+    },
+    {
+      "id": "room_adjacency",
+      "category": "layout",
+      "text": "Critical US residential room adjacency rules: Kitchen adjacent to dining (shared wall). Dining adjacent to living (visual connection or open). Primary bath adjacent to primary bedroom (direct door). Walk-in closet between bedroom and bath ideal. Laundry adjacent to bedroom hallway. Mudroom adjacent to garage entry. Home office away from bedrooms. Great room connects to outdoor living."
+    },
+    {
+      "id": "sqft_2000",
+      "category": "sizing",
+      "text": "2000 sq ft US home typical room breakdown: Living room 320sf, Kitchen 180sf, Dining 120sf, Primary bedroom 200sf, Primary bath 100sf, Walk-in closet 64sf, Bedroom 2: 130sf, Bedroom 3: 120sf, Shared bath 55sf, Hallway 80sf, Entry foyer 56sf, Garage 528sf (not in conditioned area), Laundry 48sf, Patio 240sf (exterior)."
+    },
+    {
+      "id": "sqft_1500",
+      "category": "sizing",
+      "text": "1500 sq ft US home typical room breakdown: Living room 270sf, Kitchen 150sf, Dining/breakfast nook 100sf, Primary bedroom 180sf, Primary bath 80sf, Walk-in closet 50sf, Bedroom 2: 120sf, Bedroom 3: 110sf, Shared bath 50sf, Hallway 65sf, Entry 45sf, Laundry closet 24sf. 2-car garage is 480sf additional. Typical footprint 40x38ft."
+    },
+    {
+      "id": "sqft_2500",
+      "category": "sizing",
+      "text": "2500 sq ft US home typical room breakdown: Great room (living+kitchen+dining) 600sf, Primary bedroom 220sf, Primary bath 120sf, Walk-in closet 80sf, Bedroom 2: 150sf, Bedroom 3: 140sf, Bedroom 4: 130sf, Shared bath 1: 60sf, Shared bath 2: 55sf, Hallway 100sf, Entry foyer 70sf, Home office 110sf, Laundry room 70sf, Mudroom 45sf. Garage 2-car standard."
+    },
+    {
+      "id": "two_story",
+      "category": "layout",
+      "text": "US two-story home layout: main floor has living areas (great room, kitchen, dining, garage, mudroom, powder bath). Upper floor has all bedrooms (primary suite + secondary bedrooms, laundry room). Stairs width 36in minimum, located centrally or near entry. Upper hallway 4ft wide. Stack plumbing walls (bath above bath or kitchen). Ceiling heights: 9ft main, 8ft upper typical."
+    },
+    {
+      "id": "us_materials_exterior",
+      "category": "materials",
+      "text": "US residential exterior materials: vinyl or fiber cement horizontal lap siding (most common) in colors white, gray, beige, sage green, or navy. Brick veneer at foundation and entry accent. Asphalt shingle roof in charcoal, weathered wood, or brownstone. White-painted wood trim, fascia, and soffits. Black or dark brown aluminum window frames. Concrete or brick front porch. Architectural shingles add dimension."
+    },
+    {
+      "id": "us_materials_interior",
+      "category": "materials",
+      "text": "US residential interior materials: hardwood floors in oak, maple, or hickory (living, dining, office, hallways). Carpet in bedrooms. Porcelain or ceramic tile in bathrooms, laundry, mudroom. Engineered hardwood in kitchen common. White 5.5in colonial baseboard throughout. Walls painted drywall: living/dining greige or warm gray, bedrooms soft blue or sage, kitchen white or light gray. 9ft ceilings with 4.5in crown molding."
+    },
+    {
+      "id": "kitchen_detail",
+      "category": "kitchen",
+      "text": "US kitchen design details: white Shaker cabinets most popular. Quartz or granite countertops (white/gray/black). Subway tile backsplash 3x6in white. Kitchen island with seating (4x8ft typical) in two-tone navy or dark color with quartz top. Stainless steel appliances: 36in range, 36in refrigerator, dishwasher. Under-cabinet lighting. Pot filler over range. Double undermount sink. Walk-in pantry adjacent or closet pantry."
+    },
+    {
+      "id": "master_bath_detail",
+      "category": "bathroom",
+      "text": "US primary bathroom details: dual vanity 60-72in with quartz countertop. Undermount rectangular sinks with chrome or brushed nickel fixtures. Walk-in tile shower 36x48in minimum, 48x48in preferred with bench. Freestanding soaking tub 60in as focal point. Large format floor tile 12x24in herringbone. Subway tile or large format tile walls to ceiling. Heated floor option. Walk-in shower frameless glass. Recessed lighting."
+    },
+    {
+      "id": "living_furniture",
+      "category": "interior_design",
+      "text": "US living room standard furniture layout: sectional sofa (110in L-shape typical) or sofa (84in) + loveseat (60in) facing media wall. Coffee table 24x48in between seating. TV mounted on wall at 55-65in height, 65-75in screen size typical. Area rug 8x10ft or 9x12ft grounds seating. Two accent chairs. Side tables. Floor-to-ceiling curtains at windows. LED recessed lighting + floor lamps."
+    },
+    {
+      "id": "bedroom_furniture",
+      "category": "interior_design",
+      "text": "US primary bedroom furniture: king bed (76x80in) on bedroom wall, 3ft clearance each side. Two nightstands with lamps. Dresser 6-drawer (36x20in) on accent wall. Bench at foot of bed. TV above dresser optional. Master bench 20x48in. Soft carpet or area rug over hardwood. Curtains floor-to-ceiling. Ceiling fan with light. Walk-in closet with built-in organization system (shelves, rods, drawers)."
+    },
+    {
+      "id": "us_colors",
+      "category": "interior_design",
+      "text": "Popular US interior paint colors 2024: Living rooms: Sherwin-Williams Accessible Beige, Benjamin Moore Revere Pewter, agreeable gray. Bedrooms: Sherwin-Williams Meander Blue, Sea Salt, Rainstorm. Kitchen: Pure White, Alabaster. Trim: Always bright white (White Dove or Simply White). Exterior: Sherwin-Williams Agreeable Gray, Naval (navy), Alabaster (white), Evergreen Fog, Urbane Bronze. Dark contrasting shutters/door always recommended."
+    },
+    {
+      "id": "outdoor_integration",
+      "category": "outdoor",
+      "text": "US residential indoor-outdoor integration: main living areas open to rear patio/deck via 8-16ft wide sliding or folding glass doors. Covered patio with ceiling fan extends living to outdoors. Exterior kitchen or grill station on patio. Defined outdoor seating zone and dining zone. Landscape buffer at property lines. Privacy fence or hedge 6ft on sides. Low maintenance native plants at foundation. Outdoor lighting on timer or sensor."
+    }
+  ]
+}

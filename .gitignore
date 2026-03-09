@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+
+# Cache files
+embed_cache.json
+*.cache
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
