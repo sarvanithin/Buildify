@@ -3,7 +3,7 @@ import io
 import json
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -13,6 +13,10 @@ from generator import generate_floor_plan
 from exporter import export_to_dxf
 from cost import estimate_cost, REGION_MULTIPLIERS
 from scoring import score_design
+from moe.inference import predict_floor_plan, load_model
+from moe.api_auth import key_store, get_api_key
+from moe.config import MOEConfig
+from moe.experts import EXPERT_NAMES
 
 app = FastAPI(title="Buildify API")
 
@@ -24,6 +28,11 @@ async def startup_event():
         await rag.initialize()
     except Exception as e:
         print(f"[RAG] Init warning: {e} — generation will work without RAG context.")
+    # Pre-load MOE model
+    try:
+        load_model()
+    except Exception as e:
+        print(f"[MOE] Init warning: {e} — MOE generation may be unavailable.")
 
 
 app.add_middleware(
@@ -75,6 +84,16 @@ class ChatRequest(BaseModel):
     messages: list[ChatMessage]
 
 
+class AuthRequest(BaseModel):
+    email: str = ""
+    tier: str = "free"
+
+
+class UpgradeRequest(BaseModel):
+    api_key: str
+    tier: str
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @app.get("/api/health")
@@ -94,6 +113,89 @@ async def generate(constraints: Constraints):
         return {"plans": list(plans)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── MOE Endpoints ─────────────────────────────────────────────────────────────
+
+@app.post("/api/generate/moe")
+async def generate_moe(constraints: Constraints, request: Request):
+    """Generate floor plans using the MOE AI model."""
+    try:
+        # Check API key for tier limits
+        api_key = get_api_key(request)
+        config = MOEConfig()
+        num_variants = 3  # default
+
+        if api_key:
+            record = key_store.validate_key(api_key)
+            if record:
+                if not key_store.check_limit(api_key):
+                    raise HTTPException(
+                        status_code=429,
+                        detail="Daily generation limit reached. Upgrade to Pro for unlimited."
+                    )
+                num_variants = config.TIER_VARIANTS.get(record["tier"], 3)
+                key_store.record_usage(api_key, "generation")
+
+        c = constraints.model_dump()
+        result = predict_floor_plan(c, num_variants=num_variants)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/moe/experts")
+async def moe_experts(constraints: Constraints):
+    """Get expert activation weights for given constraints."""
+    try:
+        c = constraints.model_dump()
+        result = predict_floor_plan(c, num_variants=1)
+        return {
+            "expert_weights": result["expert_weights"],
+            "expert_names": EXPERT_NAMES,
+            "confidence": result["confidence"],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Auth Endpoints ────────────────────────────────────────────────────────────
+
+@app.post("/api/auth/register")
+async def auth_register(req: AuthRequest):
+    """Register a new API key."""
+    try:
+        record = key_store.create_key(tier=req.tier, email=req.email)
+        return {
+            "api_key": record["key"],
+            "tier": record["tier"],
+            "message": f"API key created. Tier: {record['tier']}",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/auth/usage")
+async def auth_usage(request: Request):
+    """Get usage stats for the current API key."""
+    api_key = get_api_key(request)
+    if not api_key:
+        raise HTTPException(status_code=401, detail="API key required in X-API-Key header.")
+    usage = key_store.get_usage(api_key)
+    if not usage:
+        raise HTTPException(status_code=401, detail="Invalid API key.")
+    return usage
+
+
+@app.post("/api/auth/upgrade")
+async def auth_upgrade(req: UpgradeRequest):
+    """Upgrade an API key to a higher tier."""
+    result = key_store.upgrade_key(req.api_key, req.tier)
+    if not result:
+        raise HTTPException(status_code=404, detail="API key not found.")
+    return {"tier": req.tier, "message": f"Upgraded to {req.tier} tier."}
 
 
 @app.post("/api/export/dxf")
