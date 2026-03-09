@@ -1,0 +1,338 @@
+[
+  {
+    "epoch": 1,
+    "train": {
+      "total": 1.8662,
+      "coords": 0.0444,
+      "types": 1.7365,
+      "compliance": 0.0,
+      "adjacency": 0.4251,
+      "balance": 0.0019
+    },
+    "val": {
+      "total": 1.8123,
+      "coords": 0.0448,
+      "types": 1.7359,
+      "compliance": 0.0,
+      "adjacency": 0.1569,
+      "balance": 0.0024
+    },
+    "lr": 0.001,
+    "elapsed_s": 65.3
+  },
+  {
+    "epoch": 2,
+    "train": {
+      "total": 0.8304,
+      "coords": 0.0452,
+      "types": 0.7512,
+      "compliance": 0.0,
+      "adjacency": 0.1689,
+      "balance": 0.0024
+    },
+    "val": {
+      "total": 3.9432,
+      "coords": 0.0473,
+      "types": 3.8342,
+      "compliance": 0.0,
+      "adjacency": 0.3077,
+      "balance": 0.001
+    },
+    "lr": 0.0009990143508499217,
+    "elapsed_s": 37.2
+  },
+  {
+    "epoch": 3,
+    "train": {
+      "total": 0.4352,
+      "coords": 0.0446,
+      "types": 0.3539,
+      "compliance": 0.0,
+      "adjacency": 0.1824,
+      "balance": 0.0016
+    },
+    "val": {
+      "total": 4.3033,
+      "coords": 0.0477,
+      "types": 4.2093,
+      "compliance": 0.0,
+      "adjacency": 0.2309,
+      "balance": 0.0019
+    },
+    "lr": 0.0009960612933065818,
+    "elapsed_s": 37.2
+  },
+  {
+    "epoch": 4,
+    "train": {
+      "total": 0.3318,
+      "coords": 0.0433,
+      "types": 0.2537,
+      "compliance": 0.0,
+      "adjacency": 0.1731,
+      "balance": 0.0021
+    },
+    "val": {
+      "total": 4.5142,
+      "coords": 0.0458,
+      "types": 4.4121,
+      "compliance": 0.0,
+      "adjacency": 0.2809,
+      "balance": 0.002
+    },
+    "lr": 0.00099115248173898,
+    "elapsed_s": 37.2
+  },
+  {
+    "epoch": 5,
+    "train": {
+      "total": 0.2587,
+      "coords": 0.0415,
+      "types": 0.1768,
+      "compliance": 0.0,
+      "adjacency": 0.2018,
+      "balance": 0.0017
+    },
+    "val": {
+      "total": 5.3016,
+      "coords": 0.0454,
+      "types": 5.1951,
+      "compliance": 0.0,
+      "adjacency": 0.3048,
+      "balance": 0.001
+    },
+    "lr": 0.0009843072889837512,
+    "elapsed_s": 37.3
+  },
+  {
+    "epoch": 6,
+    "train": {
+      "total": 0.1831,
+      "coords": 0.041,
+      "types": 0.1073,
+      "compliance": 0.0,
+      "adjacency": 0.1732,
+      "balance": 0.0014
+    },
+    "val": {
+      "total": 6.1626,
+      "coords": 0.0456,
+      "types": 6.0469,
+      "compliance": 0.0,
+      "adjacency": 0.3496,
+      "balance": 0.0011
+    },
+    "lr": 0.0009755527298894294,
+    "elapsed_s": 37.6
+  },
+  {
+    "epoch": 7,
+    "train": {
+      "total": 0.1563,
+      "coords": 0.0404,
+      "types": 0.0829,
+      "compliance": 0.0,
+      "adjacency": 0.1646,
+      "balance": 0.0013
+    },
+    "val": {
+      "total": 6.5255,
+      "coords": 0.0459,
+      "types": 6.3736,
+      "compliance": 0.0,
+      "adjacency": 0.5267,
+      "balance": 0.0066
+    },
+    "lr": 0.0009649233547011816,
+    "elapsed_s": 36.4
+  },
+  {
+    "epoch": 8,
+    "train": {
+      "total": 0.1551,
+      "coords": 0.0397,
+      "types": 0.0806,
+      "compliance": 0.0,
+      "adjacency": 0.1715,
+      "balance": 0.0048
+    },
+    "val": {
+      "total": 7.0105,
+      "coords": 0.0428,
+      "types": 6.8581,
+      "compliance": 0.0,
+      "adjacency": 0.5476,
+      "balance": 0.0011
+    },
+    "lr": 0.0009524611127067769,
+    "elapsed_s": 38.0
+  },
+  {
+    "epoch": 9,
+    "train": {
+      "total": 0.1072,
+      "coords": 0.0388,
+      "types": 0.0364,
+      "compliance": 0.0,
+      "adjacency": 0.1599,
+      "balance": 0.0009
+    },
+    "val": {
+      "total": 7.2084,
+      "coords": 0.041,
+      "types": 7.0712,
+      "compliance": 0.0,
+      "adjacency": 0.4801,
+      "balance": 0.0011
+    },
+    "lr": 0.0009382151866819099,
+    "elapsed_s": 38.0
+  },
+  {
+    "epoch": 10,
+    "train": {
+      "total": 0.0979,
+      "coords": 0.0375,
+      "types": 0.0281,
+      "compliance": 0.0,
+      "adjacency": 0.1609,
+      "balance": 0.0009
+    },
+    "val": {
+      "total": 7.3803,
+      "coords": 0.0385,
+      "types": 7.2263,
+      "compliance": 0.0,
+      "adjacency": 0.5769,
+      "balance": 0.001
+    },
+    "lr": 0.0009222417987882566,
+    "elapsed_s": 36.6
+  },
+  {
+    "epoch": 11,
+    "train": {
+      "total": 0.1165,
+      "coords": 0.0363,
+      "types": 0.0472,
+      "compliance": 0.0,
+      "adjacency": 0.1642,
+      "balance": 0.0016
+    },
+    "val": {
+      "total": 8.1435,
+      "coords": 0.0389,
+      "types": 8.019,
+      "compliance": 0.0,
+      "adjacency": 0.4272,
+      "balance": 0.0016
+    },
+    "lr": 0.0009046039886902864,
+    "elapsed_s": 36.7
+  },
+  {
+    "epoch": 12,
+    "train": {
+      "total": 0.0939,
+      "coords": 0.0352,
+      "types": 0.0267,
+      "compliance": 0.0,
+      "adjacency": 0.1591,
+      "balance": 0.0012
+    },
+    "val": {
+      "total": 8.5025,
+      "coords": 0.035,
+      "types": 8.3897,
+      "compliance": 0.0,
+      "adjacency": 0.389,
+      "balance": 0.0008
+    },
+    "lr": 0.0008853713647665069,
+    "elapsed_s": 36.9
+  },
+  {
+    "epoch": 13,
+    "train": {
+      "total": 0.0818,
+      "coords": 0.0341,
+      "types": 0.0171,
+      "compliance": 0.0,
+      "adjacency": 0.1528,
+      "balance": 0.0009
+    },
+    "val": {
+      "total": 8.7686,
+      "coords": 0.0337,
+      "types": 8.6535,
+      "compliance": 0.0,
+      "adjacency": 0.4067,
+      "balance": 0.0007
+    },
+    "lr": 0.0008646198293969952,
+    "elapsed_s": 38.4
+  },
+  {
+    "epoch": 14,
+    "train": {
+      "total": 0.0767,
+      "coords": 0.0329,
+      "types": 0.0136,
+      "compliance": 0.0,
+      "adjacency": 0.1505,
+      "balance": 0.0007
+    },
+    "val": {
+      "total": 8.4683,
+      "coords": 0.0324,
+      "types": 8.3137,
+      "compliance": 0.0,
+      "adjacency": 0.6103,
+      "balance": 0.0009
+    },
+    "lr": 0.0008424312794113801,
+    "elapsed_s": 37.4
+  },
+  {
+    "epoch": 15,
+    "train": {
+      "total": 0.0804,
+      "coords": 0.032,
+      "types": 0.0177,
+      "compliance": 0.0,
+      "adjacency": 0.1531,
+      "balance": 0.0013
+    },
+    "val": {
+      "total": 8.4482,
+      "coords": 0.0321,
+      "types": 8.3229,
+      "compliance": 0.0,
+      "adjacency": 0.4658,
+      "balance": 0.0008
+    },
+    "lr": 0.0008188932828794706,
+    "elapsed_s": 37.8
+  },
+  {
+    "epoch": 16,
+    "train": {
+      "total": 0.0711,
+      "coords": 0.0311,
+      "types": 0.0109,
+      "compliance": 0.0,
+      "adjacency": 0.1452,
+      "balance": 0.0007
+    },
+    "val": {
+      "total": 8.6345,
+      "coords": 0.0306,
+      "types": 8.4871,
+      "compliance": 0.0,
+      "adjacency": 0.584,
+      "balance": 0.0005
+    },
+    "lr": 0.0007940987335200906,
+    "elapsed_s": 37.8
+  }
+]
