@@ -16,20 +16,28 @@ interface Props {
 }
 
 type MainTab = 'plan' | 'elevations' | 'spec' | 'cost' | 'score' | 'chat'
-type ViewMode = '2d' | '3d'
+type ViewMode = '2d' | 'exterior' | 'dollhouse' | 'walkthrough' | 'topview'
 
 const TAB_LABELS: { id: MainTab; label: string }[] = [
-  { id: 'plan',       label: '2D / 3D Plan' },
+  { id: 'plan', label: '2D / 3D Plan' },
   { id: 'elevations', label: 'Elevations' },
-  { id: 'spec',       label: 'Spec Schedule' },
-  { id: 'cost',       label: 'Cost Estimate' },
-  { id: 'score',      label: 'Design Score' },
-  { id: 'chat',       label: '✦ AI Chat' },
+  { id: 'spec', label: 'Spec Schedule' },
+  { id: 'cost', label: 'Cost Estimate' },
+  { id: 'score', label: 'Design Score' },
+  { id: 'chat', label: '✦ AI Chat' },
+]
+
+const VIEW_BUTTONS: { id: ViewMode; label: string; icon: string }[] = [
+  { id: '2d', label: '2D Plan', icon: '📐' },
+  { id: 'exterior', label: 'Exterior', icon: '🏠' },
+  { id: 'dollhouse', label: 'Dollhouse', icon: '🏘️' },
+  { id: 'walkthrough', label: 'Walk', icon: '🚶' },
+  { id: 'topview', label: 'Top View', icon: '⬜' },
 ]
 
 export default function FloorPlanEditor({ plan, onUpdate }: Props) {
-  const [tab, setTab]               = useState<MainTab>('plan')
-  const [viewMode, setViewMode]     = useState<ViewMode>('2d')
+  const [tab, setTab] = useState<MainTab>('plan')
+  const [viewMode, setViewMode] = useState<ViewMode>('2d')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [interiorRoom, setInteriorRoom] = useState<Room | null>(null)
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 })
@@ -39,7 +47,7 @@ export default function FloorPlanEditor({ plan, onUpdate }: Props) {
     const obs = new ResizeObserver(() => {
       if (containerRef.current) {
         setCanvasSize({
-          width:  containerRef.current.clientWidth,
+          width: containerRef.current.clientWidth,
           height: containerRef.current.clientHeight,
         })
       }
@@ -90,11 +98,19 @@ export default function FloorPlanEditor({ plan, onUpdate }: Props) {
       {tab === 'plan' && (
         <div className="editor-body">
           <div className="editor-canvas" ref={containerRef}>
-            {/* 2D / 3D sub-toggle */}
+            {/* View mode toggle — 5 modes */}
             <div className="plan-sub-controls">
-              <div className="view-toggle">
-                <button className={viewMode === '2d' ? 'active' : ''} onClick={() => setViewMode('2d')}>2D Plan</button>
-                <button className={viewMode === '3d' ? 'active' : ''} onClick={() => setViewMode('3d')}>3D View</button>
+              <div className="view-toggle view-toggle-expanded">
+                {VIEW_BUTTONS.map(btn => (
+                  <button
+                    key={btn.id}
+                    className={viewMode === btn.id ? 'active' : ''}
+                    onClick={() => setViewMode(btn.id)}
+                  >
+                    <span className="view-btn-icon">{btn.icon}</span>
+                    <span className="view-btn-label">{btn.label}</span>
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -107,7 +123,7 @@ export default function FloorPlanEditor({ plan, onUpdate }: Props) {
                 containerHeight={canvasSize.height}
               />
             ) : (
-              <View3D plan={plan} />
+              <View3D plan={plan} initialMode={viewMode} />
             )}
           </div>
 

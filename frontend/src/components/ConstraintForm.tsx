@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Constraints } from '../types/floorplan'
 
 interface Props {
-  onGenerate: (c: Constraints) => void
+  onGenerate: (c: Constraints, useMOE?: boolean) => void
   loading: boolean
 }
 
@@ -64,6 +64,7 @@ function OptionGroup<T extends string>({
 
 export default function ConstraintForm({ onGenerate, loading }: Props) {
   const [c, setC] = useState<Constraints>(DEFAULT)
+  const [useMOE, setUseMOE] = useState(true)
   const set = <K extends keyof Constraints>(field: K, value: Constraints[K]) =>
     setC(prev => ({ ...prev, [field]: value }))
 
@@ -203,13 +204,46 @@ export default function ConstraintForm({ onGenerate, loading }: Props) {
         </div>
       </div>
 
+      {/* ── AI Generator Toggle ── */}
+      <div className="form-section">
+        <div className="form-section-title">Generator</div>
+        <div className="moe-toggle-container">
+          <button
+            className={`moe-toggle-btn ${useMOE ? 'active' : ''}`}
+            onClick={() => setUseMOE(true)}
+          >
+            <span className="moe-icon">🧠</span>
+            <span>AI-Powered</span>
+            <span className="moe-badge">MOE</span>
+          </button>
+          <button
+            className={`moe-toggle-btn ${!useMOE ? 'active' : ''}`}
+            onClick={() => setUseMOE(false)}
+          >
+            <span className="moe-icon">⚡</span>
+            <span>Classic</span>
+          </button>
+        </div>
+        {useMOE && (
+          <div className="moe-info">
+            8 specialized AI experts analyze your constraints for optimal layouts.
+            IRC compliant · Multi-stage refinement
+          </div>
+        )}
+      </div>
+
       <div className="form-section generate-section">
         <button
-          className="generate-btn"
-          onClick={() => onGenerate(c)}
+          className={`generate-btn ${useMOE ? 'moe-glow' : ''}`}
+          onClick={() => onGenerate(c, useMOE)}
           disabled={loading}
         >
-          {loading ? <><span className="spinner" /> Generating...</> : '✦ Generate Plans'}
+          {loading
+            ? <><span className="spinner" /> {useMOE ? 'AI Generating...' : 'Generating...'}</>
+            : useMOE
+              ? '🧠 Generate with MOE AI'
+              : '✦ Generate Plans'
+          }
         </button>
       </div>
 

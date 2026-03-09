@@ -85,3 +85,66 @@ export interface ChatMsg {
   role: 'user' | 'assistant'
   content: string
 }
+
+// ── MOE API ──────────────────────────────────────────────────────────────────
+
+export interface MOEResult {
+  plans: FloorPlan[]
+  expert_weights: Record<string, number>
+  confidence: number
+  irc_compliant: boolean
+}
+
+export interface ExpertWeightsResult {
+  expert_weights: Record<string, number>
+  expert_names: string[]
+  confidence: number
+}
+
+export interface AuthResult {
+  api_key: string
+  tier: string
+  message: string
+}
+
+export interface UsageResult {
+  tier: string
+  generations_today: number
+  daily_limit: number | string
+  total_generations: number
+  total_exports: number
+  total_chats: number
+  variants_per_request: number
+}
+
+export async function generatePlansMOE(
+  constraints: Constraints,
+  apiKey?: string
+): Promise<MOEResult> {
+  const headers: Record<string, string> = {}
+  if (apiKey) headers['X-API-Key'] = apiKey
+  const { data } = await api.post('/generate/moe', constraints, { headers })
+  return data
+}
+
+export async function getExpertWeights(
+  constraints: Constraints
+): Promise<ExpertWeightsResult> {
+  const { data } = await api.post('/moe/experts', constraints)
+  return data
+}
+
+export async function registerApiKey(
+  email: string = '',
+  tier: string = 'free'
+): Promise<AuthResult> {
+  const { data } = await api.post('/auth/register', { email, tier })
+  return data
+}
+
+export async function getUsage(apiKey: string): Promise<UsageResult> {
+  const { data } = await api.get('/auth/usage', {
+    headers: { 'X-API-Key': apiKey },
+  })
+  return data
+}

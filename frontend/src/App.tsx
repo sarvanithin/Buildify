@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { FloorPlan, Constraints } from './types/floorplan'
-import { generatePlans } from './api/client'
+import { generatePlans, generatePlansMOE, MOEResult } from './api/client'
 import ConstraintForm from './components/ConstraintForm'
 import FloorPlanGallery from './components/FloorPlanGallery'
 import FloorPlanEditor from './components/FloorPlanEditor'
@@ -13,15 +13,31 @@ export default function App() {
   const [selected, setSelected] = useState<FloorPlan | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [moeData, setMoeData] = useState<{
+    expert_weights: Record<string, number>
+    confidence: number
+    irc_compliant: boolean
+  } | null>(null)
 
-  async function handleGenerate(c: Constraints) {
+  async function handleGenerate(c: Constraints, useMOE?: boolean) {
     setLoading(true)
     setError(null)
     setPlans([])
+    setMoeData(null)
     setScreen('gallery')
     try {
-      const result = await generatePlans(c)
-      setPlans(result)
+      if (useMOE) {
+        const result: MOEResult = await generatePlansMOE(c)
+        setPlans(result.plans)
+        setMoeData({
+          expert_weights: result.expert_weights,
+          confidence: result.confidence,
+          irc_compliant: result.irc_compliant,
+        })
+      } else {
+        const result = await generatePlans(c)
+        setPlans(result)
+      }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Generation failed'
       setError(msg)
@@ -53,6 +69,32 @@ export default function App() {
         <ConstraintForm onGenerate={handleGenerate} loading={loading} />
 
         {error && <div className="error-msg">{error}</div>}
+
+        {moeData && (
+          <div className="moe-status-panel">
+            <div className="moe-status-header">
+              <span>🧠 MOE AI</span>
+              <span className="moe-confidence">{moeData.confidence}%</span>
+            </div>
+            <div className="moe-status-irc">
+              {moeData.irc_compliant ? '✅ IRC Compliant' : '⚠️ Check compliance'}
+            </div>
+            <div className="moe-expert-bars">
+              {Object.entries(moeData.expert_weights).map(([name, weight]) => (
+                <div key={name} className="expert-bar-row">
+                  <span className="expert-bar-label">{name}</span>
+                  <div className="expert-bar-track">
+                    <div
+                      className="expert-bar-fill"
+                      style={{ width: `${Math.round(weight * 100)}%` }}
+                    />
+                  </div>
+                  <span className="expert-bar-value">{Math.round(weight * 100)}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {plans.length > 0 && (
           <div className="sidebar-plans">
