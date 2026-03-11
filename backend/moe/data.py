@@ -72,10 +72,10 @@ ADJACENCY_RULES = [
 ZONE_MAP = {
     # Entry zone: garage front-left, mudroom and laundry tucked in service column
     "garage": 0, "foyer": 0, "mudroom": 0, "laundry_room": 0, "utility_room": 0,
-    # Public zone: living areas visible from entry
-    "living_room": 1, "dining_room": 1, "family_room": 1, "home_office": 1,
-    # Kitchen/service zone: kitchen faces backyard, pantry adjacent
-    "kitchen": 2, "pantry": 2,
+    # Public zone: main living area visible from entry, home office
+    "living_room": 1, "home_office": 1,
+    # Kitchen/social zone: kitchen faces backyard, dining + family adjacent to kitchen
+    "kitchen": 2, "dining_room": 2, "family_room": 2, "pantry": 2,
     # Hallway zone: 4ft circulation spine separating public from private
     "hallway": 3, "half_bath": 3,
     # Private zone: master suite grouped, secondary bedrooms, shared baths
