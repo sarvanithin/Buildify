@@ -126,96 +126,136 @@ def _moe_adjusted_size(room_type: str, sqft: int, expert_weights: dict) -> tuple
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Stage 3: Zone-based layout placement — TIGHT PACKING (zero gaps)
+# Stage 3: Architecturally correct US residential placement
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _place_rooms_by_zone(rooms: List[dict], total_w: float, total_h: float,
-                         style: str, variant_seed: int = 0) -> List[dict]:
+def _place_rooms_architectural(rooms: List[dict], total_w: float, total_h: float,
+                               style: str, variant_seed: int = 0) -> List[dict]:
     """
-    Place rooms using zone-based band layout with FULL-WIDTH row packing.
-    Every row stretches to fill the complete footprint width — no gaps.
+    Architecturally correct US residential front-to-back placement.
 
-    Zones: public → service → private → outdoor (stacked vertically)
-    Within each zone, rooms pack L→R, wrapping to new rows.
-    Remaining width in each row is distributed proportionally.
+    Band order (street → backyard):
+      ENTRY   — garage front-left, foyer adjacent, mudroom attached to garage
+      PUBLIC  — living room, dining room, family room, home office
+      KITCHEN — kitchen faces backyard, pantry adjacent, laundry service column
+      HALLWAY — 4ft fixed-height full-width circulation spine
+      PRIVATE — master suite grouped (bed+ensuite+walk-in), secondary bedrooms
+      OUTDOOR — patio/deck at rear
+
+    Rules:
+      - Last room in each row stretches to fill width (no proportional distortion)
+      - Each row has its own height from its tallest room (no uniform zone height)
+      - Hallway is always full-width at 4ft minimum depth
+      - Master suite rooms always placed together as a cluster
     """
-    rng = random.Random(variant_seed)
+    placed: List[dict] = []
+    y_cursor = 0.0
 
-    # Group by zone
-    zone_rooms = {0: [], 1: [], 2: [], 3: []}
+    # Room types that should never be stretched far beyond their natural size
+    _SMALL_ROOMS = {"closet", "walk_in_closet", "half_bath", "pantry",
+                    "mudroom", "laundry_room", "utility_room",
+                    "bathroom", "ensuite_bathroom"}
+
+    # Group rooms by zone (uses updated ZONE_MAP: 0=ENTRY..5=OUTDOOR)
+    zone_rooms: Dict[int, List[dict]] = {i: [] for i in range(6)}
     for r in rooms:
-        zone = ZONE_MAP.get(r["type"], 0)
-        zone_rooms[zone].append(r)
+        z = ZONE_MAP.get(r["type"], 1)
+        zone_rooms[z].append(r)
 
-    # Shuffle within zones for variant diversity
-    for z in zone_rooms.values():
-        rng.shuffle(z)
+    def _pack_rows(band_rooms: List[dict], fixed_height: float = None) -> None:
+        """
+        Pack a pre-ordered list into rows. Last room in each row fills remaining width.
+        Small rooms (closets, pantry, etc.) are capped at 1.5× their natural size.
+        Each row height = tallest room in that row (or fixed_height if specified).
+        """
+        nonlocal y_cursor
+        if not band_rooms:
+            return
 
-    # Sort by adjacency within zones
-    for zone_id, zrooms in zone_rooms.items():
-        zone_rooms[zone_id] = _sort_by_adjacency(zrooms)
+        # Split into rows by width
+        rows: List[List[dict]] = []
+        cur_row: List[dict] = []
+        row_w = 0.0
+        for r in band_rooms:
+            if row_w + r["width"] > total_w and cur_row:
+                rows.append(cur_row)
+                cur_row = []
+                row_w = 0.0
+            cur_row.append(r)
+            row_w += r["width"]
+        if cur_row:
+            rows.append(cur_row)
 
-    # Layout zones top-to-bottom: [public, service, private, outdoor]
-    band_order = [0, 2, 1, 3]
-    placed = []
-    zone_y_start = 0
-
-    for zone_id in band_order:
-        zrooms = zone_rooms[zone_id]
-        if not zrooms:
-            continue
-
-        # Pack rooms into rows within this zone
-        rows = []  # list of row lists
-        current_row = []
-        row_x = 0
-
-        for r in zrooms:
-            w = r["width"]
-
-            if row_x + w > total_w and current_row:
-                rows.append(current_row)
-                current_row = []
-                row_x = 0
-
-            current_row.append(r)
-            row_x += w
-
-        if current_row:
-            rows.append(current_row)
-
-        # Place each row with FULL-WIDTH stretching
-        y_pos = zone_y_start
         for row in rows:
-            row_height = max(r["height"] for r in row)
-            total_room_w = sum(r["width"] for r in row)
-            gap = total_w - total_room_w
-
-            # Distribute width difference proportionally (stretch OR shrink)
-            x_pos = 0
-            for idx, r in enumerate(row):
-                extra = 0
-                if total_room_w > 0 and abs(gap) > 0:
-                    extra = round(gap * (r["width"] / total_room_w))
-                adj_w = max(4, r["width"] + extra)  # minimum 4ft room width
-
+            row_h = fixed_height if fixed_height else max(r["height"] for r in row)
+            x_pos = 0.0
+            for i, r in enumerate(row):
+                w = float(r["width"])
+                # Last room in row fills remaining width,
+                # but small rooms are capped at 1.5× natural size
+                if i == len(row) - 1:
+                    remaining = total_w - x_pos
+                    if remaining > w:
+                        if r["type"] in _SMALL_ROOMS:
+                            w = min(remaining, w * 1.5)  # cap small rooms
+                        else:
+                            w = remaining  # major rooms take all remaining space
+                w = max(4.0, round(w))
                 placed.append({
                     **r,
                     "x": round(x_pos),
-                    "y": round(y_pos),
-                    "width": adj_w,
-                    "height": row_height,  # uniform row height
+                    "y": round(y_cursor),
+                    "width": int(w),
+                    "height": round(row_h),
                 })
-                x_pos += adj_w
+                x_pos += w
+            y_cursor += round(row_h)
 
-            # Fix last room to exactly hit total_w (avoid rounding gaps)
-            if placed and x_pos != total_w:
-                last = placed[-1]
-                last["width"] += round(total_w - x_pos)
+    # ── ZONE 0: ENTRY BAND (y=0, front of house) ──────────────────────────
+    # Garage always front-left (x=0), mudroom tucked beside garage, foyer at right
+    entry = zone_rooms[0]
+    entry.sort(key=lambda r: {
+        "garage": 0, "mudroom": 1, "laundry_room": 2, "utility_room": 3, "foyer": 4
+    }.get(r["type"], 5))
+    _pack_rows(entry)
 
-            y_pos += row_height
+    # ── ZONE 1: PUBLIC BAND ───────────────────────────────────────────────
+    # Keep adjacency order (living→dining or living→family depending on plan)
+    public = _sort_by_adjacency(zone_rooms[1])
+    _pack_rows(public)
 
-        zone_y_start = y_pos  # next zone starts AFTER this one
+    # ── ZONE 2: KITCHEN/SERVICE BAND ─────────────────────────────────────
+    # Kitchen first (faces backyard), pantry adjacent, laundry/utility at left-side
+    kitchen_rooms = zone_rooms[2]
+    # Pantry/utility first (small service rooms), kitchen last so it fills remaining width
+    kitchen_rooms.sort(key=lambda r: {
+        "pantry": 0, "laundry_room": 1, "utility_room": 2, "kitchen": 3
+    }.get(r["type"], 4))
+    _pack_rows(kitchen_rooms)
+
+    # ── ZONE 3: HALLWAY — full-width 4ft circulation spine ────────────────
+    hallway_rooms = zone_rooms[3]
+    hallway = next((r for r in hallway_rooms if r["type"] == "hallway"), None)
+    other_hall = [r for r in hallway_rooms if r["type"] != "hallway"]
+    if hallway:
+        hallway_h = max(4, hallway["height"])
+        hallway["width"] = int(total_w)   # spans full footprint width
+        _pack_rows([hallway], fixed_height=hallway_h)
+    _pack_rows(other_hall)  # half_bath, etc., in next sub-row
+
+    # ── ZONE 4: PRIVATE BAND (bedrooms) ───────────────────────────────────
+    # Master suite cluster first: master_bedroom → ensuite_bathroom → walk_in_closet
+    # Then secondary bedrooms, shared bathrooms, closets
+    private = zone_rooms[4]
+    suite_order = {
+        "master_bedroom": 0, "ensuite_bathroom": 1, "walk_in_closet": 2,
+        "bedroom": 3, "bathroom": 4, "closet": 5,
+    }
+    private.sort(key=lambda r: suite_order.get(r["type"], 6))
+    _pack_rows(private)
+
+    # ── ZONE 5: OUTDOOR BAND (rear of house) ──────────────────────────────
+    _pack_rows(zone_rooms[5])
 
     # Final overlap safety check
     placed = _final_overlap_check(placed, total_w)
@@ -421,10 +461,18 @@ def _snap_and_fill(rooms: List[dict], total_w: float, total_h: float) -> List[di
             x_cursor += r["width"]
 
         # Adjust last room to exactly hit total_w (stretch OR shrink)
+        # Small auxiliary rooms (closets, pantry, etc.) are skipped for large stretches
+        _SMALL_SNAP = {"closet", "walk_in_closet", "half_bath", "pantry",
+                       "mudroom", "laundry_room", "utility_room",
+                       "bathroom", "ensuite_bathroom"}
         if row_rooms_sorted:
             last = row_rooms_sorted[-1]
             right_edge = last["x"] + last["width"]
             diff = tw - right_edge
+
+            # Don't stretch a small room by more than 50% of its current width
+            if last.get("type") in _SMALL_SNAP and diff > last["width"] * 0.5:
+                diff = round(last["width"] * 0.5)
 
             if diff != 0:
                 # Try adjusting just the last room
@@ -573,7 +621,7 @@ def predict_floor_plan(constraints: dict, num_variants: int = 3,
             num_variants=num_variants, variant_idx=v,
         )
         used_housegan = hg_placed is not None
-        placed = hg_placed if used_housegan else _place_rooms_by_zone(
+        placed = hg_placed if used_housegan else _place_rooms_architectural(
             sized_rooms, total_w, total_h, style, variant_seed=v
         )
 
