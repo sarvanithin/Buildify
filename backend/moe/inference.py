@@ -187,29 +187,25 @@ def _place_rooms_architectural(rooms: List[dict], total_w: float, total_h: float
             rows.append(cur_row)
 
         for row in rows:
-            row_h = fixed_height if fixed_height else max(r["height"] for r in row)
+            # Band advances by the deepest room — no uniform height inflation.
+            # Each room keeps its own scaled height.
+            band_advance = fixed_height if fixed_height else max(r["height"] for r in row)
             x_pos = 0.0
             for i, r in enumerate(row):
                 w = float(r["width"])
-                # Last room in row fills remaining width,
-                # but small rooms are capped at 1.5× natural size
-                if i == len(row) - 1:
-                    remaining = total_w - x_pos
-                    if remaining > w:
-                        if r["type"] in _SMALL_ROOMS:
-                            w = min(remaining, w * 1.5)  # cap small rooms
-                        else:
-                            w = remaining  # major rooms take all remaining space
+                # Rooms keep their proportionally-scaled sizes — no band-filling stretch.
+                # This preserves architectural proportions and the target sqft accuracy.
                 w = max(4.0, round(w))
+                room_h = fixed_height if fixed_height else r["height"]
                 placed.append({
                     **r,
                     "x": round(x_pos),
                     "y": round(y_cursor),
                     "width": int(w),
-                    "height": round(row_h),
+                    "height": round(room_h),  # individual height, not row max
                 })
                 x_pos += w
-            y_cursor += round(row_h)
+            y_cursor += round(band_advance)  # advance by tallest room in row
 
     # ── ZONE 0: ENTRY BAND (y=0, front of house) ──────────────────────────
     # Garage always front-left (x=0), mudroom tucked beside garage, foyer at right
@@ -227,9 +223,9 @@ def _place_rooms_architectural(rooms: List[dict], total_w: float, total_h: float
     # ── ZONE 2: KITCHEN/SERVICE BAND ─────────────────────────────────────
     # Kitchen first (faces backyard), pantry adjacent, laundry/utility at left-side
     kitchen_rooms = zone_rooms[2]
-    # Pantry/utility first (small service rooms), kitchen last so it fills remaining width
+    # Pantry first (small), then dining/family, kitchen last (fills remaining width)
     kitchen_rooms.sort(key=lambda r: {
-        "pantry": 0, "laundry_room": 1, "utility_room": 2, "kitchen": 3
+        "pantry": 0, "dining_room": 1, "family_room": 2, "kitchen": 3
     }.get(r["type"], 4))
     _pack_rows(kitchen_rooms)
 
@@ -238,7 +234,7 @@ def _place_rooms_architectural(rooms: List[dict], total_w: float, total_h: float
     hallway = next((r for r in hallway_rooms if r["type"] == "hallway"), None)
     other_hall = [r for r in hallway_rooms if r["type"] != "hallway"]
     if hallway:
-        hallway_h = max(4, hallway["height"])
+        hallway_h = 4  # IRC R311.7: 36in min; 4ft is standard corridor depth (not sqft-scaled)
         hallway["width"] = int(total_w)   # spans full footprint width
         _pack_rows([hallway], fixed_height=hallway_h)
     _pack_rows(other_hall)  # half_bath, etc., in next sub-row
@@ -461,18 +457,19 @@ def _snap_and_fill(rooms: List[dict], total_w: float, total_h: float) -> List[di
             x_cursor += r["width"]
 
         # Adjust last room to exactly hit total_w (stretch OR shrink)
-        # Small auxiliary rooms (closets, pantry, etc.) are skipped for large stretches
-        _SMALL_SNAP = {"closet", "walk_in_closet", "half_bath", "pantry",
-                       "mudroom", "laundry_room", "utility_room",
-                       "bathroom", "ensuite_bathroom"}
+        # Only close small gaps (≤ 6ft) — large gaps are intentional from proportional sizing.
+        # Shrinks are always applied to keep rooms within the footprint.
         if row_rooms_sorted:
             last = row_rooms_sorted[-1]
             right_edge = last["x"] + last["width"]
             diff = tw - right_edge
 
-            # Don't stretch a small room by more than 50% of its current width
-            if last.get("type") in _SMALL_SNAP and diff > last["width"] * 0.5:
-                diff = round(last["width"] * 0.5)
+            # Only close tiny grid-snapping gaps (≤ 2ft); all larger gaps are intentional.
+            # Shrinks are always applied to keep rooms within the footprint.
+            if diff > 2:
+                diff = 0  # preserve proportional sizing; gap is architectural open space
+            elif diff < 0:
+                pass  # shrinking is always allowed
 
             if diff != 0:
                 # Try adjusting just the last room
@@ -492,11 +489,6 @@ def _snap_and_fill(rooms: List[dict], total_w: float, total_h: float) -> List[di
                     # Final adjustment on last room for exact fit
                     last = row_rooms_sorted[-1]
                     last["width"] = max(4, tw - last["x"])
-
-        # Uniform row height
-        max_h = max(r["height"] for r in row_rooms_sorted)
-        for r in row_rooms_sorted:
-            r["height"] = max_h
 
     # Ensure no overlaps remain after grid snapping
     rooms = _final_overlap_check(rooms, total_w)
@@ -553,15 +545,6 @@ def predict_floor_plan(constraints: dict, num_variants: int = 3,
         for i, name in enumerate(EXPERT_NAMES)
     }
 
-    # Calculate footprint
-    footprint_sqft = sqft / stories
-    style_template = STYLE_TEMPLATES.get(style, STYLE_TEMPLATES["modern"])
-    aspect = 1.4 if open_plan else 1.2
-    total_w = round(math.sqrt(footprint_sqft * aspect))
-    total_h = round(footprint_sqft / total_w)
-    total_w = max(30, min(80, total_w))
-    total_h = max(25, min(70, total_h))
-
     ceil_map = {"standard": 9, "high": 10, "vaulted": 12}
     ceiling_ft = ceil_map.get(ceiling_height, 9)
 
@@ -614,6 +597,32 @@ def predict_floor_plan(constraints: dict, num_variants: int = 3,
                 "color": ROOM_COLORS.get(r["type"], "#E0E0E0"),
                 "x": 0, "y": 0,  # will be set by placement
             })
+
+        # ── Proportional sqft scaling ───────────────────────────────────────
+        # Room types NOT counted toward conditioned living area
+        _UNCONDITIONED = {"garage", "patio", "deck"}
+
+        # Scale all conditioned rooms so their total area ≈ target sqft
+        conditioned = [r for r in sized_rooms if r["type"] not in _UNCONDITIONED]
+        natural_area = sum(r["width"] * r["height"] for r in conditioned)
+        if natural_area > 0:
+            # sqrt scale preserves room aspect ratios while hitting total sqft
+            sf = math.sqrt(sqft / natural_area)
+            sf = min(sf, 2.0)  # don't grow more than 2× (prevents absurd rooms)
+            sf = max(sf, 0.5)  # don't shrink below 50% (IRC floors protect minimums)
+            for r in conditioned:
+                specs = IRC_ROOM_SPECS.get(r["type"], (4, 4))
+                r["width"]  = max(specs[0], round(r["width"]  * sf))
+                r["height"] = max(specs[1], round(r["height"] * sf))
+
+        # ── Footprint width from entry band (garage anchors the width) ──────
+        entry_rooms_w = sum(
+            r["width"] for r in sized_rooms
+            if ZONE_MAP.get(r["type"], 1) == 0
+        )
+        total_w = max(30, min(80, round(entry_rooms_w)))
+        # Height is determined after placement; use a generous estimate for clamping
+        total_h = max(25, min(90, round(sqft / max(total_w, 1) * 1.5)))
 
         # Stage 3: Spatial placement — HouseGAN++ first, zone-based fallback
         hg_placed = _place_rooms_housegan(
