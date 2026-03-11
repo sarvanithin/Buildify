@@ -22,20 +22,21 @@ from .config import MOEConfig
 
 IRC_ROOM_SPECS = {
     # type: (min_w, min_h, std_w, std_h, premium_w, premium_h) in feet
+    # Sizes based on IRC R304 minimums and US residential architectural standards
     "living_room":       (12, 14, 14, 18, 18, 22),
-    "kitchen":           (8, 10, 12, 14, 14, 16),
+    "kitchen":           (10, 12, 12, 14, 14, 16),   # IRC R304: ≥70 sqft; 10×12=120 sqft standard
     "dining_room":       (11, 11, 12, 14, 14, 16),
     "family_room":       (12, 14, 14, 16, 16, 20),
-    "master_bedroom":    (11, 12, 14, 15, 16, 18),
-    "bedroom":           (10, 10, 11, 12, 12, 14),
+    "master_bedroom":    (12, 14, 14, 15, 16, 18),   # Primary suite: 12×14=168 sqft minimum
+    "bedroom":           (10, 10, 11, 12, 12, 14),   # IRC R304: ≥70 sqft; 10×10=100 sqft
     "ensuite_bathroom":  (7, 9, 9, 11, 11, 13),
     "bathroom":          (5, 8, 6, 9, 8, 10),
     "half_bath":         (3, 6, 4, 6, 5, 7),
-    "hallway":           (3, 8, 4, 12, 4, 16),
+    "hallway":           (4, 4, 4, 6, 5, 8),         # IRC R311.7: ≥36in (3ft) min; 4ft preferred
     "foyer":             (6, 6, 8, 8, 10, 12),
     "home_office":       (9, 10, 10, 12, 12, 14),
     "laundry_room":      (5, 6, 7, 8, 8, 10),
-    "garage":            (12, 20, 24, 24, 32, 26),
+    "garage":            (20, 20, 24, 24, 32, 26),   # 1-car: 20×20; 2-car: 24×24 (IRC standard)
     "walk_in_closet":    (5, 7, 7, 8, 8, 10),
     "closet":            (3, 3, 4, 5, 5, 6),
     "pantry":            (3, 4, 4, 6, 5, 7),
@@ -66,16 +67,22 @@ ADJACENCY_RULES = [
     ("hallway", "bedroom", 0.7),
 ]
 
-# Zone assignments (public=0, private=1, service=2, outdoor=3)
+# Zone assignments — US residential front-to-back architecture
+# 0=ENTRY (garage+foyer front), 1=PUBLIC, 2=KITCHEN_SERVICE, 3=HALLWAY, 4=PRIVATE, 5=OUTDOOR
 ZONE_MAP = {
-    "living_room": 0, "kitchen": 0, "dining_room": 0, "family_room": 0,
-    "foyer": 0,
-    "master_bedroom": 1, "bedroom": 1, "ensuite_bathroom": 1,
-    "bathroom": 1, "walk_in_closet": 1, "closet": 1,
-    "hallway": 2, "laundry_room": 2, "garage": 2, "mudroom": 2,
-    "utility_room": 2, "pantry": 2, "half_bath": 2,
-    "home_office": 0,
-    "patio": 3, "deck": 3,
+    # Entry zone: garage front-left, mudroom and laundry tucked in service column
+    "garage": 0, "foyer": 0, "mudroom": 0, "laundry_room": 0, "utility_room": 0,
+    # Public zone: living areas visible from entry
+    "living_room": 1, "dining_room": 1, "family_room": 1, "home_office": 1,
+    # Kitchen/service zone: kitchen faces backyard, pantry adjacent
+    "kitchen": 2, "pantry": 2,
+    # Hallway zone: 4ft circulation spine separating public from private
+    "hallway": 3, "half_bath": 3,
+    # Private zone: master suite grouped, secondary bedrooms, shared baths
+    "master_bedroom": 4, "bedroom": 4, "ensuite_bathroom": 4,
+    "bathroom": 4, "walk_in_closet": 4, "closet": 4,
+    # Outdoor zone: patio/deck at rear
+    "patio": 5, "deck": 5,
 }
 
 # Style templates: which layout bands to use
@@ -225,13 +232,13 @@ def _solve_layout(rooms: List[dict], total_sqft: int,
     total_w = max(30, min(80, round(total_w)))
     total_h = max(25, min(70, round(total_h)))
 
-    # Group rooms by zone
-    zones = {0: [], 1: [], 2: [], 3: []}
+    # Group rooms by zone (0=ENTRY, 1=PUBLIC, 2=KITCHEN, 3=HALLWAY, 4=PRIVATE, 5=OUTDOOR)
+    zones = {0: [], 1: [], 2: [], 3: [], 4: [], 5: []}
     for r in rooms:
         zones[r["zone"]].append(r)
 
-    # Define band layout: [public, service, private, outdoor]
-    band_order = [0, 2, 1, 3]
+    # US residential front-to-back band order
+    band_order = [0, 1, 2, 3, 4, 5]
     placed = []
     y_cursor = 0
 
