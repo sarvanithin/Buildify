@@ -39,11 +39,11 @@ IRC_ROOM_SPECS = {
     "garage":            (20, 20, 24, 24, 32, 26),   # 1-car: 20×20; 2-car: 24×24 (IRC standard)
     "walk_in_closet":    (5, 7, 7, 8, 8, 10),
     "closet":            (3, 3, 4, 5, 5, 6),
-    "pantry":            (3, 4, 4, 6, 5, 7),
+    "pantry":            (5, 5, 6, 7, 7, 9),   # Walk-in pantry: ≥5×5=25 sqft standard
     "mudroom":           (5, 6, 7, 8, 8, 10),
     "utility_room":      (5, 6, 6, 8, 8, 10),
-    "patio":             (12, 14, 16, 20, 20, 24),
-    "deck":              (10, 12, 14, 18, 16, 22),
+    "patio":             (10, 8, 16, 12, 20, 16),
+    "deck":              (10, 8, 14, 12, 16, 16),
 }
 
 # Adjacency preferences (room_a → room_b, strength 0-1)
@@ -163,7 +163,7 @@ def _build_room_list(bedrooms: int, bathrooms: int, sqft: int,
 
     for i in range(1, bedrooms):
         _add("bedroom", f"Bedroom {i + 1}")
-        _add("closet", f"Closet {i + 1}")
+        # Bedroom closets are built-in — no separate room needed (they're within the bedroom footprint)
 
     # Bathrooms
     shared_baths = max(0, bathrooms - (1 if primary_suite or bedrooms >= 1 else 0))

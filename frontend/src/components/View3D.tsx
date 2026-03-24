@@ -54,21 +54,69 @@ function findDoors(rooms: FloorPlan['rooms']): { x: number; z: number; isVertica
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EXTERIOR SCENE (existing, refined)
+// EXTERIOR SCENE — Clean White Architectural Line-Art Style (Drafted.ai)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ExteriorWalls({ plan, wallH }: { plan: FloorPlan; wallH: number }) {
+/** White architectural walls — unified house mass from room bounding box */
+function ArchitecturalHouse({ plan, wallH }: { plan: FloorPlan; wallH: number }) {
+  // Compute overall bounding box for the main house body
+  const rooms = plan.rooms.filter(r =>
+    r.type !== 'patio' && r.type !== 'deck' && r.type !== 'rear_patio' && r.type !== 'outdoor_living'
+  )
+  const outdoor = plan.rooms.filter(r =>
+    r.type === 'patio' || r.type === 'deck' || r.type === 'rear_patio' || r.type === 'outdoor_living'
+  )
+
+  const WHITE = '#F8F7F4'
+  const EDGE = '#D8D4CC'
+
   return (
     <>
-      {plan.rooms.map(room => {
+      {/* 🏠 Main house volume — one solid white box per room (they merge visually) */}
+      {rooms.map(room => {
+        const rw = room.width * S
+        const rd = room.height * S
+        const px = (room.x + room.width / 2) * S
+        const pz = (room.y + room.height / 2) * S
+
+        // Vary heights slightly by zone for realistic massing
+        const isGarage = room.type === 'garage'
+        const h = isGarage ? wallH * 0.88 : wallH
+
+        return (
+          <mesh key={room.id} position={[px, h / 2, pz]} castShadow receiveShadow>
+            <boxGeometry args={[rw, h, rd]} />
+            <meshStandardMaterial color={WHITE} roughness={0.82} metalness={0.0} />
+          </mesh>
+        )
+      })}
+
+      {/* 🌿 Outdoor / patio areas — flat slab, slightly different tone */}
+      {outdoor.map(room => {
         const rw = room.width * S
         const rd = room.height * S
         const px = (room.x + room.width / 2) * S
         const pz = (room.y + room.height / 2) * S
         return (
-          <mesh key={room.id} position={[px, wallH / 2, pz]} castShadow receiveShadow>
-            <boxGeometry args={[rw, wallH, rd]} />
-            <meshStandardMaterial color="#EDE8DF" roughness={0.76} metalness={0.02} />
+          <mesh key={room.id} position={[px, 0.018, pz]} receiveShadow>
+            <boxGeometry args={[rw, 0.036, rd]} />
+            <meshStandardMaterial color="#E8E4DC" roughness={0.92} />
+          </mesh>
+        )
+      })}
+
+      {/* Edge cap on top to create crisp roofline edge */}
+      {rooms.map(room => {
+        const rw = room.width * S
+        const rd = room.height * S
+        const px = (room.x + room.width / 2) * S
+        const pz = (room.y + room.height / 2) * S
+        const isGarage = room.type === 'garage'
+        const h = isGarage ? wallH * 0.88 : wallH
+        return (
+          <mesh key={`cap-${room.id}`} position={[px, h - 0.005, pz]}>
+            <boxGeometry args={[rw + 0.008, 0.012, rd + 0.008]} />
+            <meshStandardMaterial color={EDGE} roughness={0.9} />
           </mesh>
         )
       })}
@@ -76,106 +124,144 @@ function ExteriorWalls({ plan, wallH }: { plan: FloorPlan; wallH: number }) {
   )
 }
 
-function GableRoof({ plan, wallH }: { plan: FloorPlan; wallH: number }) {
-  const tw = plan.totalWidth * S
-  const td = plan.totalHeight * S
-  const overhang = 0.3
-  const peakH = Math.min(tw, td) * 0.3
-
-  const shape = useMemo(() => {
-    const s = new THREE.Shape()
-    s.moveTo(-(tw / 2 + overhang), 0)
-    s.lineTo(tw / 2 + overhang, 0)
-    s.lineTo(0, peakH)
-    s.closePath()
-    return s
-  }, [tw, overhang, peakH])
-
-  const cx = plan.totalWidth * S / 2
-
-  return (
-    <group>
-      <mesh position={[cx, wallH, -overhang]} castShadow>
-        <extrudeGeometry args={[shape, { depth: td + overhang * 2, bevelEnabled: false }]} />
-        <meshStandardMaterial color="#7A5535" roughness={0.88} />
-      </mesh>
-      <mesh position={[cx, wallH + peakH - 0.035, plan.totalHeight * S / 2]} castShadow>
-        <boxGeometry args={[0.055, 0.055, td + overhang * 2 + 0.1]} />
-        <meshStandardMaterial color="#5C3D20" roughness={0.92} />
-      </mesh>
-    </group>
+/** Clean white hip-style roof matching Drafted.ai */
+function ArchitecturalRoof({ plan, wallH }: { plan: FloorPlan; wallH: number }) {
+  const rooms = plan.rooms.filter(r =>
+    r.type !== 'patio' && r.type !== 'deck' && r.type !== 'rear_patio' &&
+    r.type !== 'outdoor_living' && r.type !== 'garage'
   )
-}
 
-function ExteriorDetails({ plan, wallH }: { plan: FloorPlan; wallH: number }) {
-  const tw = plan.totalWidth * S
-  const cx = plan.totalWidth * S / 2
-  const winCount = Math.min(5, Math.max(2, Math.floor(plan.rooms.length * 0.6)))
-  const winPositions = Array.from({ length: winCount }, (_, i) => (i + 1) / (winCount + 1))
+  const WHITE = '#F2F0EC'
+  const overhang = 0.28
+
+  // Group rooms into row-based sub-roofs for more realistic complex roofline
+  const rowMap: Map<number, typeof rooms> = new Map()
+  for (const room of rooms) {
+    const key = Math.round(room.y / 2) * 2
+    if (!rowMap.has(key)) rowMap.set(key, [])
+    rowMap.get(key)!.push(room)
+  }
+
+  const roofSections: { mx: number; my: number; mw: number; mh: number }[] = []
+  for (const rowRooms of rowMap.values()) {
+    const minX = Math.min(...rowRooms.map(r => r.x))
+    const maxX = Math.max(...rowRooms.map(r => r.x + r.width))
+    const minY = Math.min(...rowRooms.map(r => r.y))
+    const maxY = Math.max(...rowRooms.map(r => r.y + r.height))
+    roofSections.push({ mx: minX, my: minY, mw: maxX - minX, mh: maxY - minY })
+  }
 
   return (
-    <group>
-      <mesh position={[cx, 0.03, plan.totalHeight * S / 2]} receiveShadow>
-        <boxGeometry args={[plan.totalWidth * S + 0.32, 0.06, plan.totalHeight * S + 0.32]} />
-        <meshStandardMaterial color="#C2BBB2" roughness={0.9} />
-      </mesh>
-      {winPositions.map((xf, i) => {
-        const wx = cx + (xf - 0.5) * tw * 0.82
+    <>
+      {roofSections.map((sec, idx) => {
+        const tw = sec.mw * S
+        const td = sec.mh * S
+        const cx = (sec.mx + sec.mw / 2) * S
+        const cz = (sec.my + sec.mh / 2) * S
+        const peakH = Math.min(tw, td) * 0.38
+
+        // Simple hip roof mesh via a slightly elevated pyramidal shape
+        // Build as two crossed gable prisms
         return (
-          <group key={i} position={[wx, wallH * 0.6, 0.006]}>
-            <mesh>
-              <boxGeometry args={[tw * 0.115, wallH * 0.28, 0.012]} />
-              <meshStandardMaterial color="#DDD8CE" roughness={0.82} />
+          <group key={idx} position={[cx, wallH, cz]}>
+            {/* Main roof deck — flat with slope suggestion */}
+            <mesh castShadow>
+              <boxGeometry args={[tw + overhang * 2, 0.025, td + overhang * 2]} />
+              <meshStandardMaterial color={WHITE} roughness={0.86} />
             </mesh>
-            <mesh>
-              <boxGeometry args={[tw * 0.1, wallH * 0.25, 0.015]} />
-              <meshStandardMaterial color="#90BBD8" roughness={0.05} metalness={0.55} transparent opacity={0.72} />
+            {/* Ridge beam along long axis */}
+            <mesh position={[0, peakH / 2, 0]} castShadow>
+              <boxGeometry args={[tw * 0.85, peakH, 0.04]} />
+              <meshStandardMaterial color={WHITE} roughness={0.82} />
+            </mesh>
+            {/* Cross ridge */}
+            <mesh position={[0, peakH / 2, 0]} castShadow>
+              <boxGeometry args={[0.04, peakH, td * 0.85]} />
+              <meshStandardMaterial color={WHITE} roughness={0.82} />
+            </mesh>
+            {/* Ridge cap */}
+            <mesh position={[0, peakH, 0]}>
+              <boxGeometry args={[tw * 0.5, 0.025, 0.06]} />
+              <meshStandardMaterial color="#E0DDD6" roughness={0.9} />
             </mesh>
           </group>
         )
       })}
-      <group position={[cx, wallH * 0.29, 0.006]}>
+    </>
+  )
+}
+
+/** Windows and front door details — clean white frames */
+function ArchitecturalDetails({ plan, wallH }: { plan: FloorPlan; wallH: number }) {
+  const tw = plan.totalWidth * S
+  const td = plan.totalHeight * S
+  const cx = tw / 2
+
+  const winCount = Math.min(5, Math.max(2, Math.floor(plan.rooms.length * 0.5)))
+  const winPositions = Array.from({ length: winCount }, (_, i) => (i + 1) / (winCount + 1))
+
+  const FRAME = '#E4E0D8'
+  const GLASS = '#C8D8E8'
+
+  return (
+    <group>
+      {/* Green lawn base */}
+      <mesh position={[cx, -0.015, td / 2]} receiveShadow>
+        <boxGeometry args={[tw + 2.4, 0.03, td + 2.4]} />
+        <meshStandardMaterial color="#8FB87A" roughness={0.95} />
+      </mesh>
+
+      {/* Concrete foundation lip */}
+      <mesh position={[cx, 0.016, td / 2]} receiveShadow>
+        <boxGeometry args={[tw + 0.06, 0.032, td + 0.06]} />
+        <meshStandardMaterial color="#D0CCC4" roughness={0.88} />
+      </mesh>
+
+      {/* Windows — front face (z = 0) */}
+      {winPositions.map((xf, i) => {
+        const wx = (xf - 0.5) * tw * 0.78 + cx
+        return (
+          <group key={i} position={[wx, wallH * 0.58, 0.01]}>
+            {/* Frame */}
+            <mesh>
+              <boxGeometry args={[tw * 0.11, wallH * 0.30, 0.018]} />
+              <meshStandardMaterial color={FRAME} roughness={0.7} />
+            </mesh>
+            {/* Glass pane */}
+            <mesh>
+              <boxGeometry args={[tw * 0.095, wallH * 0.265, 0.022]} />
+              <meshStandardMaterial color={GLASS} roughness={0.08} metalness={0.2} transparent opacity={0.6} />
+            </mesh>
+            {/* Mullion */}
+            <mesh position={[0, 0, 0.019]}>
+              <boxGeometry args={[tw * 0.095, 0.008, 0.004]} />
+              <meshStandardMaterial color={FRAME} roughness={0.8} />
+            </mesh>
+          </group>
+        )
+      })}
+
+      {/* Front door */}
+      <group position={[cx, wallH * 0.28, 0.01]}>
         <mesh>
-          <boxGeometry args={[tw * 0.07, wallH * 0.52, 0.016]} />
-          <meshStandardMaterial color="#7A5535" roughness={0.72} />
+          <boxGeometry args={[tw * 0.065, wallH * 0.52, 0.018]} />
+          <meshStandardMaterial color="#E8E4DC" roughness={0.72} />
         </mesh>
-        <mesh position={[tw * 0.024, -wallH * 0.04, 0.012]}>
-          <sphereGeometry args={[0.012, 8, 8]} />
-          <meshStandardMaterial color="#C8A850" metalness={0.85} roughness={0.2} />
+        {/* Door glass lite */}
+        <mesh position={[0, wallH * 0.08, 0.012]}>
+          <boxGeometry args={[tw * 0.042, wallH * 0.14, 0.008]} />
+          <meshStandardMaterial color={GLASS} roughness={0.1} transparent opacity={0.55} />
+        </mesh>
+        {/* Simple stoop */}
+        <mesh position={[0, -wallH * 0.28, -0.08]}>
+          <boxGeometry args={[tw * 0.12, 0.02, 0.18]} />
+          <meshStandardMaterial color="#D4D0C8" roughness={0.88} />
         </mesh>
       </group>
     </group>
   )
 }
 
-function Trees({ plan }: { plan: FloorPlan }) {
-  const positions: [number, number][] = [
-    [-0.7, -0.65],
-    [plan.totalWidth * S + 0.6, -0.5],
-    [-0.65, plan.totalHeight * S + 0.5],
-    [plan.totalWidth * S + 0.55, plan.totalHeight * S * 0.65],
-  ]
-  return (
-    <>
-      {positions.map(([tx, tz], i) => (
-        <group key={i} position={[tx, 0, tz]}>
-          <mesh position={[0, 0.14, 0]}>
-            <cylinderGeometry args={[0.036, 0.055, 0.28, 7]} />
-            <meshStandardMaterial color="#6B4226" roughness={0.9} />
-          </mesh>
-          <mesh position={[0, 0.48, 0]}>
-            <coneGeometry args={[0.26, 0.65, 8]} />
-            <meshStandardMaterial color="#2D6838" roughness={0.86} />
-          </mesh>
-        </group>
-      ))}
-      <mesh position={[plan.totalWidth * S * 0.18, 0.008, -0.32]} receiveShadow>
-        <boxGeometry args={[plan.totalWidth * S * 0.28, 0.016, 0.64]} />
-        <meshStandardMaterial color="#AEA79E" roughness={0.94} />
-      </mesh>
-    </>
-  )
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DOLLHOUSE SCENE (existing)
@@ -602,10 +688,9 @@ export default function View3D({ plan, initialMode }: Props) {
               <meshStandardMaterial color="#497850" roughness={0.93} />
             </mesh>
 
-            <ExteriorWalls plan={plan} wallH={wallH} />
-            <ExteriorDetails plan={plan} wallH={wallH} />
-            <GableRoof plan={plan} wallH={wallH} />
-            <Trees plan={plan} />
+            <ArchitecturalHouse plan={plan} wallH={wallH} />
+            <ArchitecturalDetails plan={plan} wallH={wallH} />
+            <ArchitecturalRoof plan={plan} wallH={wallH} />
 
             <OrbitControls
               target={[cx, wallH * 0.44, cz]}
