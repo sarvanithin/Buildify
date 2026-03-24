@@ -70,51 +70,6 @@ export default function App() {
 
         {error && <div className="error-msg">{error}</div>}
 
-        {moeData && (
-          <div className="moe-status-panel">
-            <div className="moe-status-header">
-              <span>🧠 MOE AI</span>
-              <span className="moe-confidence">{moeData.confidence}%</span>
-            </div>
-            <div className="moe-status-irc">
-              {moeData.irc_compliant ? '✅ IRC Compliant' : '⚠️ Check compliance'}
-            </div>
-            <div className="moe-expert-bars">
-              {Object.entries(moeData.expert_weights).map(([name, weight]) => (
-                <div key={name} className="expert-bar-row">
-                  <span className="expert-bar-label">{name}</span>
-                  <div className="expert-bar-track">
-                    <div
-                      className="expert-bar-fill"
-                      style={{ width: `${Math.round(weight * 100)}%` }}
-                    />
-                  </div>
-                  <span className="expert-bar-value">{Math.round(weight * 100)}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {plans.length > 0 && (
-          <div className="sidebar-plans">
-            <div className="sidebar-plans-title">Generated Plans</div>
-            {plans.map(p => (
-              <div
-                key={p.id}
-                className={`plan-chip ${selected?.id === p.id ? 'active' : ''}`}
-                onClick={() => handleSelect(p)}
-              >
-                <div className="plan-chip-name">{p.name}</div>
-                <div className="plan-chip-meta">
-                  {p.rooms.length} rooms ·{' '}
-                  {Math.round(p.rooms.reduce((s, r) => s + r.width * r.height, 0)).toLocaleString()} sq ft
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
         {screen === 'editor' && (
           <button className="back-btn" onClick={() => setScreen('gallery')}>
             ← Back to Gallery

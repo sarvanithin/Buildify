@@ -215,19 +215,19 @@ def _place_rooms_architectural(rooms: List[dict], total_w: float, total_h: float
     }.get(r["type"], 5))
     _pack_rows(entry)
 
-    # ── ZONE 1: PUBLIC BAND ───────────────────────────────────────────────
-    # Keep adjacency order (living→dining or living→family depending on plan)
-    public = _sort_by_adjacency(zone_rooms[1])
-    _pack_rows(public)
-
-    # ── ZONE 2: KITCHEN/SERVICE BAND ─────────────────────────────────────
-    # Kitchen first (faces backyard), pantry adjacent, laundry/utility at left-side
-    kitchen_rooms = zone_rooms[2]
-    # Pantry first (small), then dining/family, kitchen last (fills remaining width)
-    kitchen_rooms.sort(key=lambda r: {
-        "pantry": 0, "dining_room": 1, "family_room": 2, "kitchen": 3
-    }.get(r["type"], 4))
-    _pack_rows(kitchen_rooms)
+    # ── ZONES 1+2: SOCIAL BAND (kitchen + living merged) ─────────────────
+    # Merge public + kitchen into one open zone — reduces depth by ~12ft and
+    # ensures kitchen is adjacent to living areas (not isolated two bands away).
+    # Order: living_room (street-facing), dining/family (middle), kitchen (rear-facing),
+    # pantry tucked at end, home_office at far side.
+    social_rooms = zone_rooms[1] + zone_rooms[2]
+    social_order = {
+        "living_room": 0, "home_office": 1,
+        "dining_room": 2, "family_room": 3,
+        "kitchen": 4, "pantry": 5,
+    }
+    social_rooms.sort(key=lambda r: social_order.get(r["type"], 6))
+    _pack_rows(social_rooms)
 
     # ── ZONE 3: HALLWAY — full-width 4ft circulation spine ────────────────
     hallway_rooms = zone_rooms[3]
@@ -519,7 +519,7 @@ def predict_floor_plan(constraints: dict, num_variants: int = 3,
     bathrooms = constraints.get("bathrooms", 2)
     sqft = constraints.get("sqft", 1800)
     stories = constraints.get("stories", 1)
-    open_plan = constraints.get("openPlan", False)
+    open_plan = constraints.get("openPlan") or constraints.get("open_plan", False)
     primary_suite = constraints.get("primarySuite", True)
     home_office = constraints.get("homeOffice", False)
     formal_dining = constraints.get("formalDining", False)
@@ -601,28 +601,95 @@ def predict_floor_plan(constraints: dict, num_variants: int = 3,
         # ── Proportional sqft scaling ───────────────────────────────────────
         # Room types NOT counted toward conditioned living area
         _UNCONDITIONED = {"garage", "patio", "deck"}
+        # Hallway is hardcoded to full_width×4ft in placement; exclude from
+        # area target so sizing doesn't distort other rooms.
+        _FIXED_PLACEMENT = {"hallway"}
 
-        # Scale all conditioned rooms so their total area ≈ target sqft
-        conditioned = [r for r in sized_rooms if r["type"] not in _UNCONDITIONED]
+        conditioned = [
+            r for r in sized_rooms
+            if r["type"] not in _UNCONDITIONED and r["type"] not in _FIXED_PLACEMENT
+        ]
         natural_area = sum(r["width"] * r["height"] for r in conditioned)
+
+        # Hallway will be placed as total_w × 4ft — subtract its estimated footprint
+        # from the sqft target so the total conditioned area stays accurate.
+        # Estimate: entry band width × 4ft (hallway depth).
+        est_entry_w = sum(r["width"] for r in sized_rooms if ZONE_MAP.get(r["type"], 1) == 0)
+        est_entry_w = max(30, min(65, round(est_entry_w)))
+        hallway_est = est_entry_w * 4  # ≈ 160sf for a typical house
+        sqft_target = max(int(sqft * 0.75), sqft - hallway_est)
+
+        # Cap unconditioned rooms (not in conditioned array) directly here
+        # so outdoor band stays shallow and garage doesn't grow too deep.
+        _UNCOND_HEIGHT_CAPS = {
+            "patio": 10, "deck": 10, "rear_patio": 10,
+            "outdoor_living": 10, "front_porch": 6,
+            "garage": 22,
+        }
+        for r in sized_rooms:
+            cap = _UNCOND_HEIGHT_CAPS.get(r["type"])
+            if cap and r["height"] > cap:
+                r["height"] = cap
+            # Also cap unconditioned widths to avoid sprawling garages
+            if r["type"] == "patio" and r["width"] > 20:
+                r["width"] = 20
+            if r["type"] == "deck" and r["width"] > 20:
+                r["width"] = 20
+
         if natural_area > 0:
-            # sqrt scale preserves room aspect ratios while hitting total sqft
-            sf = math.sqrt(sqft / natural_area)
-            sf = min(sf, 2.0)  # don't grow more than 2× (prevents absurd rooms)
-            sf = max(sf, 0.5)  # don't shrink below 50% (IRC floors protect minimums)
+            # Phase 1 — sqrt scale preserves room aspect ratios while approaching sqft.
+            # Round to 2ft grid (matches snap_and_fill) so subsequent snapping doesn't inflate area.
+            sf = math.sqrt(sqft_target / natural_area)
+            sf = min(sf, 2.0)
+            sf = max(sf, 0.5)
             for r in conditioned:
                 specs = IRC_ROOM_SPECS.get(r["type"], (4, 4))
-                r["width"]  = max(specs[0], round(r["width"]  * sf))
-                r["height"] = max(specs[1], round(r["height"] * sf))
+                r["width"]  = max(specs[0], round(r["width"]  * sf / 2) * 2)
+                r["height"] = max(specs[1], round(r["height"] * sf / 2) * 2)
 
-        # ── Footprint width from entry band (garage anchors the width) ──────
+            # Phase 2 — cap room heights to architectural maxima.
+            # Tight caps force rooms to be WIDE rather than deep, creating a
+            # realistic shallow house footprint (vs. a narrow tower).
+            _HEIGHT_CAPS = {
+                "living_room": 14, "family_room": 14, "dining_room": 12,
+                "kitchen": 12, "home_office": 12,
+                "master_bedroom": 14, "bedroom": 12,
+                "ensuite_bathroom": 8,  "bathroom": 8,  "half_bath": 6,
+                "foyer": 8,  "mudroom": 8,  "laundry_room": 8,  "utility_room": 8,
+                "walk_in_closet": 8,  "closet": 6,  "pantry": 6,
+                "garage": 22, "patio": 10, "deck": 10, "rear_patio": 10,
+            }
+            for r in conditioned:
+                cap = _HEIGHT_CAPS.get(r["type"])
+                if cap and r["height"] > cap:
+                    r["height"] = cap
+
+            # Phase 3 — width-only scale to restore conditioned area to sqft_target.
+            # Widths expand → rooms are proportionally wider, bands are shallower.
+            # Round to 2ft grid so snap_and_fill doesn't inflate sizes further.
+            capped_area = sum(r["width"] * r["height"] for r in conditioned)
+            if capped_area > 0 and capped_area < sqft_target * 0.95:
+                sw = min(sqft_target / capped_area, 1.6)  # cap at 1.6× to prevent absurd widths
+                for r in conditioned:
+                    specs = IRC_ROOM_SPECS.get(r["type"], (4, 4))
+                    r["width"] = max(specs[0], round(r["width"] * sw / 2) * 2)
+
+        # ── Footprint width: target realistic US house proportions ─────────
+        # Real single-story houses: 50-70ft wide, 30-55ft deep.
+        # Base target width on sqft: ~sqrt(sqft * 1.8) gives sensible proportions.
+        # Then verify entry band fits and clamp to [48, 75].
         entry_rooms_w = sum(
             r["width"] for r in sized_rooms
             if ZONE_MAP.get(r["type"], 1) == 0
         )
-        total_w = max(30, min(80, round(entry_rooms_w)))
-        # Height is determined after placement; use a generous estimate for clamping
-        total_h = max(25, min(90, round(sqft / max(total_w, 1) * 1.5)))
+        # Target: wide enough that rooms pack into SINGLE rows per zone.
+        # Social zone has ~4 rooms (14-16ft each) = ~60-66ft needed.
+        # Private zone has ~5 rooms averaging ~12ft = ~60ft needed.
+        # Target 68-76ft to guarantee single-row packing in most cases.
+        sqft_based_w = math.sqrt(sqft * 2.5)  # 1800→67ft, 2400→77ft, 3000→86ft
+        total_w = max(64, min(80, round(max(entry_rooms_w, sqft_based_w) / 2) * 2))
+        # Height estimate only used for initial clamping — actual_h recomputed after placement
+        total_h = max(28, min(60, round(sqft / max(total_w, 1) * 0.9)))
 
         # Stage 3: Spatial placement — HouseGAN++ first, zone-based fallback
         hg_placed = _place_rooms_housegan(
