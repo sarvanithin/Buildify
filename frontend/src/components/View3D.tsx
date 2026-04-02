@@ -7,7 +7,7 @@ import { FloorPlan } from '../types/floorplan'
 const S = 0.09   // 1 ft = 0.09 THREE units
 type Mode = 'exterior' | 'dollhouse' | 'walkthrough' | 'topview'
 
-const WALL_COLOR = '#EDE8E0'
+const WALL_COLOR = '#e2e6ec'
 const WT = 0.022  // wall thickness
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -18,43 +18,10 @@ function roomCenter(room: FloorPlan['rooms'][number]): [number, number, number] 
   return [(room.x + room.width / 2) * S, 0, (room.y + room.height / 2) * S]
 }
 
-/** Detect door openings: shared wall segments between rooms */
-function findDoors(rooms: FloorPlan['rooms']): { x: number; z: number; isVertical: boolean; width: number }[] {
-  const doors: { x: number; z: number; isVertical: boolean; width: number }[] = []
-  const TOLERANCE = 1 // ft tolerance for shared walls
-
-  for (let i = 0; i < rooms.length; i++) {
-    for (let j = i + 1; j < rooms.length; j++) {
-      const a = rooms[i], b = rooms[j]
-
-      // Check horizontal adjacency (shared vertical wall)
-      if (Math.abs((a.x + a.width) - b.x) <= TOLERANCE || Math.abs((b.x + b.width) - a.x) <= TOLERANCE) {
-        const overlapStart = Math.max(a.y, b.y)
-        const overlapEnd = Math.min(a.y + a.height, b.y + b.height)
-        if (overlapEnd - overlapStart > 3) {
-          const doorY = (overlapStart + overlapEnd) / 2
-          const doorX = Math.abs((a.x + a.width) - b.x) <= TOLERANCE ? a.x + a.width : b.x + b.width
-          doors.push({ x: doorX * S, z: doorY * S, isVertical: true, width: 3 * S })
-        }
-      }
-
-      // Check vertical adjacency (shared horizontal wall)
-      if (Math.abs((a.y + a.height) - b.y) <= TOLERANCE || Math.abs((b.y + b.height) - a.y) <= TOLERANCE) {
-        const overlapStart = Math.max(a.x, b.x)
-        const overlapEnd = Math.min(a.x + a.width, b.x + b.width)
-        if (overlapEnd - overlapStart > 3) {
-          const doorX = (overlapStart + overlapEnd) / 2
-          const doorZ = Math.abs((a.y + a.height) - b.y) <= TOLERANCE ? a.y + a.height : b.y + b.height
-          doors.push({ x: doorX * S, z: doorZ * S, isVertical: false, width: 3 * S })
-        }
-      }
-    }
-  }
-  return doors
-}
+// Removed frontend findDoors in favor of backend plan.doors data
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EXTERIOR SCENE — Clean White Architectural Line-Art Style (Drafted.ai)
+// EXTERIOR SCENE — Presentation model: light massing, soft edges
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** White architectural walls — unified house mass from room bounding box */
@@ -67,8 +34,8 @@ function ArchitecturalHouse({ plan, wallH }: { plan: FloorPlan; wallH: number })
     r.type === 'patio' || r.type === 'deck' || r.type === 'rear_patio' || r.type === 'outdoor_living'
   )
 
-  const WHITE = '#F8F7F4'
-  const EDGE = '#D8D4CC'
+  const WHITE = '#f1f4f8'
+  const EDGE = '#c5cdd8'
 
   return (
     <>
@@ -100,7 +67,7 @@ function ArchitecturalHouse({ plan, wallH }: { plan: FloorPlan; wallH: number })
         return (
           <mesh key={room.id} position={[px, 0.018, pz]} receiveShadow>
             <boxGeometry args={[rw, 0.036, rd]} />
-            <meshStandardMaterial color="#E8E4DC" roughness={0.92} />
+            <meshStandardMaterial color="#d4dce8" roughness={0.92} />
           </mesh>
         )
       })}
@@ -124,14 +91,14 @@ function ArchitecturalHouse({ plan, wallH }: { plan: FloorPlan; wallH: number })
   )
 }
 
-/** Clean white hip-style roof matching Drafted.ai */
+/** Hip-style roof masses — neutral studio gray-white */
 function ArchitecturalRoof({ plan, wallH }: { plan: FloorPlan; wallH: number }) {
   const rooms = plan.rooms.filter(r =>
     r.type !== 'patio' && r.type !== 'deck' && r.type !== 'rear_patio' &&
     r.type !== 'outdoor_living' && r.type !== 'garage'
   )
 
-  const WHITE = '#F2F0EC'
+  const WHITE = '#e8ecf2'
   const overhang = 0.28
 
   // Group rooms into row-based sub-roofs for more realistic complex roofline
@@ -182,7 +149,7 @@ function ArchitecturalRoof({ plan, wallH }: { plan: FloorPlan; wallH: number }) 
             {/* Ridge cap */}
             <mesh position={[0, peakH, 0]}>
               <boxGeometry args={[tw * 0.5, 0.025, 0.06]} />
-              <meshStandardMaterial color="#E0DDD6" roughness={0.9} />
+              <meshStandardMaterial color="#d0d6de" roughness={0.9} />
             </mesh>
           </group>
         )
@@ -200,7 +167,7 @@ function ArchitecturalDetails({ plan, wallH }: { plan: FloorPlan; wallH: number 
   const winCount = Math.min(5, Math.max(2, Math.floor(plan.rooms.length * 0.5)))
   const winPositions = Array.from({ length: winCount }, (_, i) => (i + 1) / (winCount + 1))
 
-  const FRAME = '#E4E0D8'
+  const FRAME = '#c5ccd6'
   const GLASS = '#C8D8E8'
 
   return (
@@ -214,7 +181,7 @@ function ArchitecturalDetails({ plan, wallH }: { plan: FloorPlan; wallH: number 
       {/* Concrete foundation lip */}
       <mesh position={[cx, 0.016, td / 2]} receiveShadow>
         <boxGeometry args={[tw + 0.06, 0.032, td + 0.06]} />
-        <meshStandardMaterial color="#D0CCC4" roughness={0.88} />
+        <meshStandardMaterial color="#b8c0c8" roughness={0.88} />
       </mesh>
 
       {/* Windows — front face (z = 0) */}
@@ -245,7 +212,7 @@ function ArchitecturalDetails({ plan, wallH }: { plan: FloorPlan; wallH: number 
       <group position={[cx, wallH * 0.28, 0.01]}>
         <mesh>
           <boxGeometry args={[tw * 0.065, wallH * 0.52, 0.018]} />
-          <meshStandardMaterial color="#E8E4DC" roughness={0.72} />
+          <meshStandardMaterial color="#d4dce6" roughness={0.72} />
         </mesh>
         {/* Door glass lite */}
         <mesh position={[0, wallH * 0.08, 0.012]}>
@@ -255,7 +222,7 @@ function ArchitecturalDetails({ plan, wallH }: { plan: FloorPlan; wallH: number 
         {/* Simple stoop */}
         <mesh position={[0, -wallH * 0.28, -0.08]}>
           <boxGeometry args={[tw * 0.12, 0.02, 0.18]} />
-          <meshStandardMaterial color="#D4D0C8" roughness={0.88} />
+          <meshStandardMaterial color="#b8c0cc" roughness={0.88} />
         </mesh>
       </group>
     </group>
@@ -295,6 +262,17 @@ function RoomDollhouse({ room, wallH }: { room: FloorPlan['rooms'][number]; wall
         <boxGeometry args={[WT, wallH, rd]} />
         <meshStandardMaterial color={WALL_COLOR} roughness={0.78} />
       </mesh>
+      {/* Room label on floor */}
+      <Text
+        position={[0, WT + 0.005, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        fontSize={Math.min(rw, rd) * 0.18}
+        color="#1a1a1a80" // Hex with alpha (50%)
+        anchorX="center"
+        anchorY="middle"
+      >
+        {room.name.toUpperCase()}
+      </Text>
     </group>
   )
 }
@@ -319,25 +297,25 @@ function WalkthroughRoom({ room, wallH }: { room: FloorPlan['rooms'][number]; wa
       {/* Walls — slightly transparent for visibility */}
       <mesh position={[0, wallH / 2, -rd / 2 + WT / 2]} castShadow>
         <boxGeometry args={[rw, wallH, WT]} />
-        <meshStandardMaterial color="#F5F0E8" roughness={0.7} />
+        <meshStandardMaterial color="#e8ecf2" roughness={0.7} />
       </mesh>
       <mesh position={[0, wallH / 2, rd / 2 - WT / 2]} castShadow>
         <boxGeometry args={[rw, wallH, WT]} />
-        <meshStandardMaterial color="#F5F0E8" roughness={0.7} />
+        <meshStandardMaterial color="#e8ecf2" roughness={0.7} />
       </mesh>
       <mesh position={[-rw / 2 + WT / 2, wallH / 2, 0]} castShadow>
         <boxGeometry args={[WT, wallH, rd]} />
-        <meshStandardMaterial color="#F5F0E8" roughness={0.7} />
+        <meshStandardMaterial color="#e8ecf2" roughness={0.7} />
       </mesh>
       <mesh position={[rw / 2 - WT / 2, wallH / 2, 0]} castShadow>
         <boxGeometry args={[WT, wallH, rd]} />
-        <meshStandardMaterial color="#F5F0E8" roughness={0.7} />
+        <meshStandardMaterial color="#e8ecf2" roughness={0.7} />
       </mesh>
       {/* Room label on north wall */}
       <Text
         position={[0, wallH * 0.6, -rd / 2 + WT + 0.01]}
         fontSize={wallH * 0.12}
-        color="#6B5E51"
+        color="#475569"
         anchorX="center"
         anchorY="middle"
       >
@@ -346,42 +324,47 @@ function WalkthroughRoom({ room, wallH }: { room: FloorPlan['rooms'][number]; wa
       {/* Baseboard trim */}
       <mesh position={[0, 0.015, -rd / 2 + WT / 2]}>
         <boxGeometry args={[rw, 0.03, WT + 0.005]} />
-        <meshStandardMaterial color="#D8D2C8" roughness={0.8} />
+        <meshStandardMaterial color="#c5cbd6" roughness={0.8} />
       </mesh>
       <mesh position={[0, 0.015, rd / 2 - WT / 2]}>
         <boxGeometry args={[rw, 0.03, WT + 0.005]} />
-        <meshStandardMaterial color="#D8D2C8" roughness={0.8} />
+        <meshStandardMaterial color="#c5cbd6" roughness={0.8} />
       </mesh>
     </group>
   )
 }
 
 /** Door opening markers for the walkthrough */
-function DoorOpenings({ doors, wallH }: { doors: ReturnType<typeof findDoors>; wallH: number }) {
+function DoorOpenings({ doors, wallH }: { doors: FloorPlan['doors']; wallH: number }) {
   return (
     <>
-      {doors.map((door, i) => (
-        <group key={i} position={[door.x, 0, door.z]}>
-          {/* Door frame */}
-          <mesh position={[0, wallH * 0.38, 0]}>
-            <boxGeometry args={[
-              door.isVertical ? 0.04 : door.width,
-              wallH * 0.76,
-              door.isVertical ? door.width : 0.04
-            ]} />
-            <meshStandardMaterial color="#8B7355" roughness={0.7} />
-          </mesh>
-          {/* Door threshold */}
-          <mesh position={[0, 0.01, 0]}>
-            <boxGeometry args={[
-              door.isVertical ? 0.06 : door.width + 0.02,
-              0.02,
-              door.isVertical ? door.width + 0.02 : 0.06
-            ]} />
-            <meshStandardMaterial color="#A89070" roughness={0.85} />
-          </mesh>
-        </group>
-      ))}
+      {doors.map((door, i) => {
+        const dx = door.x * S
+        const dz = door.y * S
+        const dw = 3 * S // Standard 3ft door
+        return (
+          <group key={i} position={[dx, 0, dz]}>
+            {/* Door frame */}
+            <mesh position={[0, wallH * 0.38, 0]}>
+              <boxGeometry args={[
+                door.isVertical ? 0.04 : dw,
+                wallH * 0.76,
+                door.isVertical ? dw : 0.04
+              ]} />
+              <meshStandardMaterial color="#8B7355" roughness={0.7} />
+            </mesh>
+            {/* Door threshold */}
+            <mesh position={[0, 0.01, 0]}>
+              <boxGeometry args={[
+                door.isVertical ? 0.06 : dw + 0.02,
+                0.02,
+                door.isVertical ? dw + 0.02 : 0.06
+              ]} />
+              <meshStandardMaterial color="#A89070" roughness={0.85} />
+            </mesh>
+          </group>
+        )
+      })}
     </>
   )
 }
@@ -464,16 +447,13 @@ function FirstPersonController({ plan, wallH }: { plan: FloorPlan; wallH: number
     }
   }, [gl])
 
-  // Movement + camera rotation per frame
+  // Movement + collision detection
   useFrame(() => {
-    // Apply yaw/pitch to camera rotation
     const euler = new THREE.Euler(pitch.current, yaw.current, 0, 'YXZ')
     camera.quaternion.setFromEuler(euler)
 
-    // Calculate movement direction
     const direction = new THREE.Vector3()
     const m = moveState.current
-
     if (m.forward) direction.z -= 1
     if (m.backward) direction.z += 1
     if (m.left) direction.x -= 1
@@ -483,20 +463,39 @@ function FirstPersonController({ plan, wallH }: { plan: FloorPlan; wallH: number
       direction.normalize().multiplyScalar(speed)
       direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw.current)
 
-      const newPos = camera.position.clone().add(direction)
+      const nextX = camera.position.x + direction.x
+      const nextZ = camera.position.z + direction.z
 
-      // Simple boundary check: keep within the plan bounds
-      const margin = 0.1
-      const minX = -margin
-      const maxX = plan.totalWidth * S + margin
-      const minZ = -margin
-      const maxZ = plan.totalHeight * S + margin
+      // Collision helper: find if point is inside a room OR a door
+      const isPassable = (tx: number, tz: number) => {
+        const ftX = tx / S
+        const ftY = tz / S
+        
+        // 1. Check if inside any room with a small 0.5ft wall margin
+        const insideRoom = plan.rooms.some(r => 
+          ftX >= r.x + 0.5 && ftX <= r.x + r.width - 0.5 &&
+          ftY >= r.y + 0.5 && ftY <= r.y + r.height - 0.5
+        )
+        if (insideRoom) return true
 
-      newPos.x = Math.max(minX, Math.min(maxX, newPos.x))
-      newPos.z = Math.max(minZ, Math.min(maxZ, newPos.z))
-      newPos.y = wallH * 0.62 // Keep at eye level
+        // 2. Check if inside a door opening
+        const nearDoor = plan.doors.some(d => {
+          const dx = d.x, dy = d.y
+          const dSize = 1.5 // 3ft wide door = 1.5ft radius
+          if (d.isVertical) {
+            return Math.abs(ftX - dx) < 1.0 && Math.abs(ftY - dy) < dSize
+          } else {
+            return Math.abs(ftY - dy) < 1.0 && Math.abs(ftX - dx) < dSize
+          }
+        })
+        return nearDoor
+      }
 
-      camera.position.copy(newPos)
+      // Sliding collision (check X and Z separately)
+      if (isPassable(nextX, camera.position.z)) camera.position.x = nextX
+      if (isPassable(camera.position.x, nextZ)) camera.position.z = nextZ
+      
+      camera.position.y = wallH * 0.62
     }
   })
 
@@ -508,13 +507,13 @@ function FirstPersonController({ plan, wallH }: { plan: FloorPlan; wallH: number
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ZONE_COLORS: Record<string, string> = {
-  living_room: '#E8D5B7', kitchen: '#B7D5E8', dining_room: '#D5E8B7',
-  family_room: '#E8E0B7', master_bedroom: '#D8B7E8', bedroom: '#C8B7E8',
-  ensuite_bathroom: '#B7E8E0', bathroom: '#B7E8D5', half_bath: '#D0E8E8',
-  hallway: '#E0E0D3', foyer: '#EEEAE0', home_office: '#F5F0D3',
-  laundry_room: '#D3F5F5', garage: '#D5D5CC', walk_in_closet: '#E8D8E8',
-  closet: '#E0D8E0', pantry: '#EDE8DC', mudroom: '#E8E4D8',
-  utility_room: '#E8E8D3', patio: '#C8E8C8', deck: '#E8E4D0',
+  living_room: '#a8d0bc', kitchen: '#e2d9a8', dining_room: '#d4cfa0',
+  family_room: '#b8dcc4', master_bedroom: '#e8d4dc', bedroom: '#c8d4e8',
+  ensuite_bathroom: '#a8cfe8', bathroom: '#a8cfe8', half_bath: '#b8e0e4',
+  hallway: '#d8dce4', foyer: '#d8e0c8', home_office: '#c4c8e8',
+  laundry_room: '#b8d4e8', garage: '#c4c8c4', walk_in_closet: '#d8dce8',
+  closet: '#d8dce8', pantry: '#e0dcc8', mudroom: '#d0d4cc',
+  utility_room: '#ccd0d0', patio: '#a8d8bc', deck: '#a8d8bc',
 }
 
 function TopViewBlock({ room, blockH }: { room: FloorPlan['rooms'][number]; blockH: number }) {
@@ -522,7 +521,7 @@ function TopViewBlock({ room, blockH }: { room: FloorPlan['rooms'][number]; bloc
   const rd = room.height * S
   const px = (room.x + room.width / 2) * S
   const pz = (room.y + room.height / 2) * S
-  const color = ZONE_COLORS[room.type] || room.color || '#E0E0E0'
+  const color = ZONE_COLORS[room.type] || room.color || '#dce0e8'
 
   return (
     <group position={[px, 0, pz]}>
@@ -546,7 +545,7 @@ function TopViewBlock({ room, blockH }: { room: FloorPlan['rooms'][number]; bloc
         position={[0, blockH + 0.03, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
         fontSize={Math.min(rw, rd) * 0.22}
-        color="#3A3530"
+        color="#1e293b"
         anchorX="center"
         anchorY="middle"
         maxWidth={rw * 0.9}
@@ -558,7 +557,7 @@ function TopViewBlock({ room, blockH }: { room: FloorPlan['rooms'][number]; bloc
         position={[0, blockH + 0.02, Math.min(rw, rd) * 0.15]}
         rotation={[-Math.PI / 2, 0, 0]}
         fontSize={Math.min(rw, rd) * 0.13}
-        color="#8A8580"
+        color="#64748b"
         anchorX="center"
         anchorY="middle"
       >
@@ -616,7 +615,7 @@ export default function View3D({ plan, initialMode }: Props) {
   const cx = plan.totalWidth * S / 2
   const cz = plan.totalHeight * S / 2
 
-  const doors = useMemo(() => findDoors(plan.rooms), [plan.rooms])
+  const doors = plan.doors || []
 
   // Camera positions for each mode
   const extCam: [number, number, number] = [
@@ -672,9 +671,9 @@ export default function View3D({ plan, initialMode }: Props) {
             <color attach="background" args={['#BDD8EE']} />
             <Sky sunPosition={[55, 16, 22]} turbidity={4.5} rayleigh={0.65} />
 
-            <ambientLight intensity={0.65} color="#FFF5EC" />
+            <ambientLight intensity={0.65} color="#f4f6fb" />
             <directionalLight
-              position={[10, 18, 9]} intensity={1.6} color="#FFF4E4"
+              position={[10, 18, 9]} intensity={1.6} color="#eef2f9"
               castShadow
               shadow-mapSize-width={2048} shadow-mapSize-height={2048}
               shadow-camera-left={-16} shadow-camera-right={16}
@@ -704,12 +703,12 @@ export default function View3D({ plan, initialMode }: Props) {
         {mode === 'dollhouse' && (
           <>
             <PerspectiveCamera makeDefault position={dhCam} fov={52} />
-            <color attach="background" args={['#EDEAE4']} />
+            <color attach="background" args={['#e8ecf2']} />
 
             <ambientLight intensity={1.3} color="#FFFFFF" />
             <directionalLight
               position={[cx, wallH * 7, cz + plan.totalHeight * S * 0.8]}
-              intensity={0.7} color="#FFF8F2"
+              intensity={0.7} color="#f1f5f9"
               castShadow
               shadow-mapSize-width={2048} shadow-mapSize-height={2048}
               shadow-camera-left={-20} shadow-camera-right={20}
@@ -719,7 +718,7 @@ export default function View3D({ plan, initialMode }: Props) {
 
             <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[cx, 0, cz]}>
               <planeGeometry args={[plan.totalWidth * S * 2.5, plan.totalHeight * S * 2.5]} />
-              <meshStandardMaterial color="#D8D3C8" roughness={0.96} />
+              <meshStandardMaterial color="#cbd5e1" roughness={0.96} />
             </mesh>
 
             {plan.rooms.map(room => (
@@ -737,25 +736,25 @@ export default function View3D({ plan, initialMode }: Props) {
         {/* ── WALKTHROUGH MODE ── */}
         {mode === 'walkthrough' && (
           <>
-            <color attach="background" args={['#E8E4DC']} />
+            <color attach="background" args={['#e2e8f0']} />
 
-            <ambientLight intensity={0.5} color="#FFF8F0" />
+            <ambientLight intensity={0.5} color="#f8fafc" />
             <directionalLight
               position={[cx, wallH * 4, cz]}
-              intensity={1.2} color="#FFF8E8"
+              intensity={1.2} color="#f1f5f9"
               castShadow
               shadow-mapSize-width={2048} shadow-mapSize-height={2048}
               shadow-camera-left={-20} shadow-camera-right={20}
               shadow-camera-top={20} shadow-camera-bottom={-20}
             />
             {/* Fill lights from corners */}
-            <pointLight position={[0, wallH * 0.7, 0]} intensity={0.3} color="#FFF0E0" />
-            <pointLight position={[plan.totalWidth * S, wallH * 0.7, plan.totalHeight * S]} intensity={0.3} color="#FFF0E0" />
+            <pointLight position={[0, wallH * 0.7, 0]} intensity={0.3} color="#e0e7ef" />
+            <pointLight position={[plan.totalWidth * S, wallH * 0.7, plan.totalHeight * S]} intensity={0.3} color="#e0e7ef" />
 
             {/* Base ground plane */}
             <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[cx, -0.01, cz]}>
               <planeGeometry args={[plan.totalWidth * S * 3, plan.totalHeight * S * 3]} />
-              <meshStandardMaterial color="#C5BFB5" roughness={0.95} />
+              <meshStandardMaterial color="#94a3b8" roughness={0.95} />
             </mesh>
 
             {/* Rooms */}
@@ -774,12 +773,12 @@ export default function View3D({ plan, initialMode }: Props) {
         {mode === 'topview' && (
           <>
             <PerspectiveCamera makeDefault position={topCam} fov={50} />
-            <color attach="background" args={['#F5F3EE']} />
+            <color attach="background" args={['#e8eef5']} />
 
             <ambientLight intensity={1.0} color="#FFFFFF" />
             <directionalLight
               position={[cx + 2, wallH * 10, cz - 2]}
-              intensity={0.8} color="#FFF8F0"
+              intensity={0.8} color="#f8fafc"
               castShadow
               shadow-mapSize-width={2048} shadow-mapSize-height={2048}
               shadow-camera-left={-20} shadow-camera-right={20}
@@ -790,7 +789,7 @@ export default function View3D({ plan, initialMode }: Props) {
             {/* Subtle ground */}
             <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[cx, -0.01, cz]}>
               <planeGeometry args={[plan.totalWidth * S * 3, plan.totalHeight * S * 3]} />
-              <meshStandardMaterial color="#EAE7E0" roughness={0.96} />
+              <meshStandardMaterial color="#d8dee9" roughness={0.96} />
             </mesh>
 
             {/* Room blocks */}

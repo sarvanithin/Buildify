@@ -927,8 +927,36 @@ export default function ArchPlan({
   )
 
   const adjacencies = useMemo(() => detectAdjacencies(plan.rooms), [plan.rooms])
-  const doors       = useMemo(() => planDoors(plan.rooms, plan, adjacencies), [plan, adjacencies])
-  const windows     = useMemo(() => planWindows(plan.rooms, plan, adjacencies), [plan, adjacencies])
+  
+  const doors = useMemo(() => {
+    if (plan.doors && plan.doors.length > 0) {
+      return plan.doors.map(d => {
+        const roomA = plan.rooms.find(r => r.id === d.roomA)!
+        let wall: 'north' | 'south' | 'east' | 'west' = 'west'
+        let offsetFrac = 0.5
+
+        if (d.isVertical) {
+          wall = (Math.abs(d.x - roomA.x) < 0.1) ? 'west' : 'east'
+          offsetFrac = (d.y - roomA.y) / roomA.height
+        } else {
+          wall = (Math.abs(d.y - roomA.y) < 0.1) ? 'north' : 'south'
+          offsetFrac = (d.x - roomA.x) / roomA.width
+        }
+
+        return {
+          roomId: d.roomA,
+          wall,
+          offsetFrac,
+          widthFt: 3,
+          hingeRight: false,
+          sliding: roomA.type === 'closet' || roomA.type === 'garage'
+        } as DoorSpec
+      })
+    }
+    return planDoors(plan.rooms, plan, adjacencies)
+  }, [plan, adjacencies])
+
+  const windows = useMemo(() => planWindows(plan.rooms, plan, adjacencies), [plan, adjacencies])
 
   // Build lookup maps
   const roomPxMap = useMemo(() => {

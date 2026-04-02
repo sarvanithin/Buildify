@@ -719,6 +719,9 @@ def predict_floor_plan(constraints: dict, num_variants: int = 3,
             actual_h = max(total_h, max(r["y"] + r["height"] for r in placed))
             actual_h = round(actual_h / 2) * 2
 
+        # Stage 6: Door detection
+        doors = _add_doors(placed)
+
         plan = {
             "id": f"moe_{uuid.uuid4().hex[:8]}",
             "name": variant_names[v] if v < len(variant_names) else f"MOE Plan {v + 1}",
@@ -726,6 +729,7 @@ def predict_floor_plan(constraints: dict, num_variants: int = 3,
             "totalHeight": actual_h,
             "ceilingHeight": ceiling_ft,
             "rooms": placed,
+            "doors": doors,
             "generator": "moe+housegan" if used_housegan else "moe",
             "variant": v,
         }
@@ -740,6 +744,84 @@ def predict_floor_plan(constraints: dict, num_variants: int = 3,
         "confidence": confidence,
         "irc_compliant": True,
     }
+
+
+def _add_doors(rooms: List[dict]) -> List[dict]:
+    """
+    Detect shared wall segments and place doors/openings.
+    Returns: List of {x, y, isVertical, roomA, roomB}
+    """
+    doors = []
+    processed_pairs = set()
+
+    for i, r1 in enumerate(rooms):
+        for j, r2 in enumerate(rooms):
+            if i >= j: continue
+            pair = tuple(sorted((r1["id"], r2["id"])))
+            if pair in processed_pairs: continue
+
+            # Check for shared vertical wall (X matches)
+            # R1 is left of R2 OR R2 is left of R1
+            shared_v = None
+            if abs((r1["x"] + r1["width"]) - r2["x"]) < 0.5:
+                # R1 | R2
+                shared_x = r2["x"]
+                y_start = max(r1["y"], r2["y"])
+                y_end = min(r1["y"] + r1["height"], r2["y"] + r2["height"])
+                if y_end - y_start >= 3: # Need at least 3ft shared wall
+                    shared_v = (shared_x, y_start + (y_end - y_start)/2, True)
+            elif abs((r2["x"] + r2["width"]) - r1["x"]) < 0.5:
+                # R2 | R1
+                shared_x = r1["x"]
+                y_start = max(r1["y"], r2["y"])
+                y_end = min(r1["y"] + r1["height"], r2["y"] + r2["height"])
+                if y_end - y_start >= 3:
+                    shared_v = (shared_x, y_start + (y_end - y_start)/2, True)
+
+            # Check for shared horizontal wall (Y matches)
+            shared_h = None
+            if abs((r1["y"] + r1["height"]) - r2["y"]) < 0.5:
+                # R1
+                # ---
+                # R2
+                shared_y = r2["y"]
+                x_start = max(r1["x"], r2["x"])
+                x_end = min(r1["x"] + r1["width"], r2["x"] + r2["width"])
+                if x_end - x_start >= 3:
+                    shared_h = (x_start + (x_end - x_start)/2, shared_y, False)
+            elif abs((r2["y"] + r2["height"]) - r1["y"]) < 0.5:
+                # R2
+                # ---
+                # R1
+                shared_y = r1["y"]
+                x_start = max(r1["x"], r2["x"])
+                x_end = min(r1["x"] + r1["width"], r2["x"] + r2["width"])
+                if x_end - x_start >= 3:
+                    shared_h = (x_start + (x_end - x_start)/2, shared_y, False)
+
+            # Rules for placing a door:
+            # 1. One is a hallway → almost always a door
+            # 2. One is a foyer and other is a social room → door
+            # 3. Master bedroom to master bath/closet → door
+            # 4. Adjacent social rooms → wide opening
+            is_door = False
+            t1, t2 = r1["type"], r2["type"]
+            
+            if "hallway" in (t1, t2): is_door = True
+            elif ("foyer" in (t1, t2)) and any(t in ("living_room", "dining_room", "family_room", "kitchen") for t in (t1, t2)): is_door = True
+            elif (t1 == "master_bedroom" and t2 in ("ensuite_bathroom", "walk_in_closet")) or (t2 == "master_bedroom" and t1 in ("ensuite_bathroom", "walk_in_closet")): is_door = True
+            elif all(t in ("living_room", "dining_room", "family_room", "kitchen") for t in (t1, t2)): is_door = True # Wide opening
+            elif "mudroom" in (t1, t2) and any(t in ("garage", "kitchen", "foyer") for t in (t1, t2)): is_door = True
+
+            if is_door:
+                if shared_v:
+                    doors.append({"x": shared_v[0], "y": shared_v[1], "isVertical": True, "roomA": r1["id"], "roomB": r2["id"]})
+                    processed_pairs.add(pair)
+                elif shared_h:
+                    doors.append({"x": shared_h[0], "y": shared_h[1], "isVertical": False, "roomA": r1["id"], "roomB": r2["id"]})
+                    processed_pairs.add(pair)
+
+    return doors
 
 
 def _calculate_confidence(expert_weights: dict, plans: list, target_sqft: int) -> float:

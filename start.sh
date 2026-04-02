@@ -1,5 +1,5 @@
 #!/bin/bash
-# Drafted — start backend + frontend
+# Buildify — start backend + frontend
 cd "$(dirname "$0")"
 
 # Start Ollama if not running
