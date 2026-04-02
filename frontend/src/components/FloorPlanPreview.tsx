@@ -6,47 +6,43 @@ interface Props {
   height?: number
 }
 
-// Warm, architectural pastel palette matching Drafted.ai's color coding
+// Cool, readable fills for plan previews (distinct category hues)
 const TYPE_COLORS: Record<string, string> = {
-  // Beds & Baths — warm pinks/purples
-  master_bedroom:    '#F5C5C5',
-  primary_bedroom:   '#F5C5C5',
-  bedroom:           '#DCCDE8',
-  bathroom:          '#B8D8E8',
-  ensuite_bathroom:  '#B8D8E8',
-  half_bath:         '#C8E8E8',
-  primary_bath:      '#B8D8E8',
-  closet:            '#F0C8A0',
-  walk_in_closet:    '#F0C8A0',
-  primary_closet:    '#F0C8A0',
+  master_bedroom:    '#e8d4dc',
+  primary_bedroom:   '#e8d4dc',
+  bedroom:           '#c8d4e8',
+  bathroom:          '#a8cfe8',
+  ensuite_bathroom:  '#a8cfe8',
+  half_bath:         '#b8e0e4',
+  primary_bath:      '#a8cfe8',
+  closet:            '#d8dce8',
+  walk_in_closet:    '#d8dce8',
+  primary_closet:    '#d8dce8',
 
-  // Living spaces — golds/yellows/greens
-  kitchen:           '#F0E088',
-  dining_room:       '#E8D478',
-  living_room:       '#C8E0A0',
-  great_room:        '#C8E0A0',
-  family_room:       '#D8E898',
-  foyer:             '#F0D8A0',
-  entry_foyer:       '#F0D8A0',
-  home_office:       '#D0C8F0',
-  bar:               '#F0D0B0',
-  nook:              '#E8E0A8',
-  sunroom:           '#D8F0C0',
+  kitchen:           '#e2d9a8',
+  dining_room:       '#d4cfa0',
+  living_room:       '#a8d0bc',
+  great_room:        '#a8d0bc',
+  family_room:       '#b8dcc4',
+  foyer:             '#d8e0c8',
+  entry_foyer:       '#d8e0c8',
+  home_office:       '#c4c8e8',
+  bar:               '#dcc8a8',
+  nook:              '#d0d8c0',
+  sunroom:           '#c0e0c8',
 
-  // Service
-  hallway:           '#E0E0D8',
-  laundry_room:      '#D0E8F0',
-  mudroom:           '#E8D8C8',
-  pantry:            '#F0E8D0',
-  utility_room:      '#D8D8D0',
-  garage:            '#D0D0C8',
+  hallway:           '#d8dce4',
+  laundry_room:      '#b8d4e8',
+  mudroom:           '#d0d4cc',
+  pantry:            '#e0dcc8',
+  utility_room:      '#ccd0d0',
+  garage:            '#c4c8c4',
 
-  // Outdoor — soft greens
-  patio:             '#C8E8C0',
-  deck:              '#C8E8C0',
-  front_porch:       '#B8E0B8',
-  outdoor_living:    '#B8E0B8',
-  rear_patio:        '#C8E8C0',
+  patio:             '#a8d8bc',
+  deck:              '#a8d8bc',
+  front_porch:       '#98d0a8',
+  outdoor_living:    '#98d0a8',
+  rear_patio:        '#a8d8bc',
 }
 
 function getRoomColor(room: FloorPlan['rooms'][number]): string {
@@ -72,7 +68,7 @@ function getRoomColor(room: FloorPlan['rooms'][number]): string {
   if (name.includes('foyer') || name.includes('entry')) return TYPE_COLORS.foyer
 
   // Fall back to room.color (from backend) or default
-  return room.color || '#E8E4DC'
+  return room.color || '#dce0e8'
 }
 
 export default function FloorPlanPreview({ plan, width = 300, height = 210 }: Props) {
@@ -86,7 +82,7 @@ export default function FloorPlanPreview({ plan, width = 300, height = 210 }: Pr
   const WALL = Math.max(0.6, scale * 0.15)
 
   return (
-    <svg width={width} height={height} style={{ display: 'block', background: '#F5F2EC' }}>
+    <svg width={width} height={height} style={{ display: 'block', background: '#e8eef5' }}>
       {/* Outer footprint shadow */}
       <rect
         x={ox + 2} y={oy + 2}
@@ -99,7 +95,7 @@ export default function FloorPlanPreview({ plan, width = 300, height = 210 }: Pr
         x={ox} y={oy}
         width={plan.totalWidth * scale}
         height={plan.totalHeight * scale}
-        fill="#EDEBE5" stroke="#C0BCB4" strokeWidth={1.2} rx={1}
+        fill="#dce4ee" stroke="#94a3b8" strokeWidth={1.2} rx={1}
       />
 
       {/* Rooms */}

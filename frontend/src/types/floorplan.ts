@@ -9,6 +9,14 @@ export interface Room {
   color: string
 }
 
+export interface Door {
+  x: number
+  y: number
+  isVertical: boolean
+  roomA: string
+  roomB: string
+}
+
 export interface FloorPlan {
   id: string
   name: string
@@ -16,6 +24,7 @@ export interface FloorPlan {
   totalHeight: number
   ceilingHeight: number   // feet
   rooms: Room[]
+  doors: Door[]
 }
 
 export interface Constraints {
