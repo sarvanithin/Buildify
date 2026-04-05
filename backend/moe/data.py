@@ -142,11 +142,14 @@ def _build_room_list(bedrooms: int, bathrooms: int, sqft: int,
         _add("living_room")
         if formal_dining:
             _add("dining_room", "Formal Dining")
-        _add("family_room")
+        if sqft >= 2000:  # family room only for larger homes
+            _add("family_room")
 
     _add("kitchen")
+    # Add exactly one dining room (unless open plan without formal dining, where kitchen/great room handles it)
     if not (open_plan and not formal_dining):
-        _add("dining_room", "Dining Area")
+        if not formal_dining:
+            _add("dining_room", "Dining Area")
 
     # Entry
     _add("foyer", "Entry Foyer")

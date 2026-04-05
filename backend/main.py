@@ -123,6 +123,111 @@ async def generate(constraints: Constraints):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def validate_constraints_feasibility(c: dict) -> list:
+    """
+    Check whether the requested constraints are physically feasible.
+    Returns a list of issues (may be empty). Each issue:
+      {"field": str, "severity": "error"|"warning", "message": str, "detail": str}
+    Errors block generation; warnings are informational only.
+    """
+    issues = []
+    sqft         = c.get("sqft", 1800)
+    bedrooms     = c.get("bedrooms", 3)       # total incl. primary
+    bathrooms    = c.get("bathrooms", 2)
+    primary_suite = c.get("primarySuite", True)
+    home_office  = c.get("homeOffice", False)
+    formal_dining = c.get("formalDining", False)
+    laundry      = c.get("laundry", "room")
+    garage       = c.get("garage", "2car")
+    stories      = c.get("stories", 1)
+
+    secondary = max(0, bedrooms - 1)
+    shared_baths = max(0, bathrooms - 1)
+
+    # ── Base overhead (kitchen + living + hallway + foyer) ────────────────
+    min_sqft = 168 + 120 + 200 + 40   # = 528
+
+    # ── Primary bedroom cluster ───────────────────────────────────────────
+    min_sqft += 240 if primary_suite else 168   # bed + ensuite + closet
+
+    # ── Secondary bedrooms ────────────────────────────────────────────────
+    min_sqft += secondary * 100
+
+    # ── Shared bathrooms ──────────────────────────────────────────────────
+    min_sqft += shared_baths * 40
+
+    # ── Optional rooms ────────────────────────────────────────────────────
+    if home_office:    min_sqft += 90
+    if formal_dining:  min_sqft += 121
+    if laundry == "room": min_sqft += 30
+
+    # ── ERROR: total sqft below minimum ───────────────────────────────────
+    if sqft < min_sqft:
+        parts = []
+        if secondary: parts.append(f"{secondary} secondary bedroom{'s' if secondary != 1 else ''}")
+        parts.append(f"{bathrooms} bathroom{'s' if bathrooms != 1 else ''}")
+        if home_office: parts.append("home office")
+        if formal_dining: parts.append("formal dining")
+        issues.append({
+            "field": "sqft",
+            "severity": "error",
+            "message": "Not enough space for this configuration.",
+            "detail": (
+                f"Your selections ({', '.join(parts)}) require at least {min_sqft:,} sqft of "
+                f"living space. You set {sqft:,} sqft. "
+                f"Increase the size to {min_sqft:,}+ sqft, or remove bedrooms/rooms."
+            ),
+        })
+
+    # ── ERROR: too many bedrooms for sqft ────────────────────────────────
+    base_overhead = 528 + (240 if primary_suite else 168)
+    max_secondary = max(0, (sqft - base_overhead) // 100)
+    if secondary > max_secondary and sqft >= min_sqft:
+        issues.append({
+            "field": "bedrooms",
+            "severity": "error",
+            "message": f"{bedrooms} bedrooms is not feasible in {sqft:,} sqft.",
+            "detail": (
+                f"After essential rooms, only {int(sqft - base_overhead):,} sqft remains for "
+                f"secondary bedrooms ({int(max_secondary)} max at 100 sqft each). "
+                f"Use {int(max_secondary) + 1} total bedrooms or increase to "
+                f"{int(base_overhead + secondary * 100):,}+ sqft."
+            ),
+        })
+
+    # ── WARNING: bathrooms > bedrooms + 1 ────────────────────────────────
+    if bathrooms > bedrooms + 1:
+        issues.append({
+            "field": "bathrooms",
+            "severity": "warning",
+            "message": f"{bathrooms} bathrooms for {bedrooms} bedrooms is unusual.",
+            "detail": (
+                f"Standard practice is 1 bathroom per bedroom or 1 shared bathroom per "
+                f"2 bedrooms. Consider {min(bathrooms, bedrooms)} bathrooms."
+            ),
+        })
+
+    # ── WARNING: 2-story with tiny footprint ─────────────────────────────
+    if stories == 2 and sqft < 1200:
+        issues.append({
+            "field": "stories",
+            "severity": "warning",
+            "message": "Two-story layout under 1,200 sqft is cramped.",
+            "detail": "Staircase overhead is significant in small homes. Consider single-story or increase to 1,200+ sqft.",
+        })
+
+    # ── WARNING: 3-car garage on small home ──────────────────────────────
+    if garage == "3car" and sqft < 1800:
+        issues.append({
+            "field": "garage",
+            "severity": "warning",
+            "message": "A 3-car garage is disproportionate for this home size.",
+            "detail": f"3-car garages suit homes 1,800+ sqft. With {sqft:,} sqft, a 1 or 2-car garage is more appropriate.",
+        })
+
+    return issues
+
+
 # ── MOE Endpoints ─────────────────────────────────────────────────────────────
 
 @app.post("/api/generate/moe")
@@ -146,6 +251,16 @@ async def generate_moe(constraints: Constraints, request: Request):
                 key_store.record_usage(api_key, "generation")
 
         c = constraints.model_dump()
+
+        # Feasibility check — block generation for impossible configurations
+        issues = validate_constraints_feasibility(c)
+        hard_errors = [i for i in issues if i["severity"] == "error"]
+        if hard_errors:
+            raise HTTPException(
+                status_code=422,
+                detail={"validation_errors": issues},
+            )
+
         result = predict_floor_plan(c, num_variants=num_variants)
         return result
     except HTTPException:

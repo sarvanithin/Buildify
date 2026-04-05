@@ -39,8 +39,19 @@ export default function App() {
         setPlans(result)
       }
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Generation failed'
-      setError(msg)
+      // Handle structured 422 validation errors from backend
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const axiosErr = e as any
+      if (axiosErr?.response?.status === 422 && axiosErr?.response?.data?.detail?.validation_errors) {
+        const issues = axiosErr.response.data.detail.validation_errors as Array<{severity: string; message: string; detail: string}>
+        const lines = issues.map(i =>
+          `${i.severity === 'error' ? '✕' : '⚠'} ${i.message}\n${i.detail}`
+        )
+        setError(lines.join('\n\n'))
+      } else {
+        const msg = e instanceof Error ? e.message : 'Generation failed'
+        setError(msg)
+      }
     } finally {
       setLoading(false)
     }

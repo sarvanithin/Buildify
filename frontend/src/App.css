@@ -358,6 +358,60 @@ select option {
   line-height: 1.4;
 }
 
+/* ─── Constraint Validation ──────────────────────────── */
+
+.catalog-validation {
+  padding: 10px 14px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.catalog-validation-issue {
+  border-radius: 6px;
+  padding: 9px 11px;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.catalog-validation-error {
+  background: rgba(239, 68, 68, 0.10);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  color: #FCA5A5;
+}
+
+.catalog-validation-warning {
+  background: rgba(251, 191, 36, 0.10);
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  color: #FCD34D;
+}
+
+.catalog-validation-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.catalog-validation-icon {
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 12px;
+  margin-top: 1px;
+}
+
+.catalog-validation-detail {
+  margin: 0;
+  opacity: 0.85;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.catalog-generate-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* ─── Sidebar Plans ───────────────────────────────────── */
 
 .sidebar-plans {

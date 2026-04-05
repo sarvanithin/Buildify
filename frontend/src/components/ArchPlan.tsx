@@ -877,7 +877,10 @@ function TitleBlock({
   plan, svgW, svgH,
 }: { plan: FloorPlan; svgW: number; svgH: number }): React.ReactElement {
   const y = svgH - TITLE_H
-  const totalSF = Math.round(plan.rooms.reduce((s, r) => s + r.width * r.height, 0))
+  const _UNCONDITIONED = new Set(['garage', 'patio', 'deck', 'rear_patio', 'outdoor_living', 'front_porch'])
+  const totalSF = Math.round(plan.rooms
+    .filter(r => !_UNCONDITIONED.has(r.type))
+    .reduce((s, r) => s + r.width * r.height, 0))
   return (
     <g>
       <rect x={0} y={y} width={svgW} height={TITLE_H} fill="white" stroke="#1a1a1a" strokeWidth={0.5} />
@@ -895,7 +898,7 @@ function TitleBlock({
         fontFamily="system-ui, Arial" fontSize={9} fill="#555">NOT FOR CONSTRUCTION</text>
       {/* Stats */}
       <text x={svgW * 0.86} y={y + 16} textAnchor="middle"
-        fontFamily="system-ui, Arial" fontSize={9} fill="#555">TOTAL AREA</text>
+        fontFamily="system-ui, Arial" fontSize={9} fill="#555">LIVING AREA</text>
       <text x={svgW * 0.86} y={y + 28} textAnchor="middle"
         fontFamily="system-ui, Arial" fontSize={12} fontWeight="700" fill="#1a1a1a">{totalSF.toLocaleString()} SF</text>
       <text x={svgW * 0.86} y={y + 40} textAnchor="middle"
