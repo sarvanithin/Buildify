@@ -154,7 +154,7 @@ def _place_rooms_architectural(rooms: List[dict], total_w: float, total_h: float
     # Room types that should never be stretched far beyond their natural size
     _SMALL_ROOMS = {"closet", "walk_in_closet", "half_bath", "pantry",
                     "mudroom", "laundry_room", "utility_room",
-                    "bathroom", "ensuite_bathroom"}
+                    "bathroom", "ensuite_bathroom", "foyer"}
 
     # Group rooms by zone (uses updated ZONE_MAP: 0=ENTRY..5=OUTDOOR)
     zone_rooms: Dict[int, List[dict]] = {i: [] for i in range(6)}
@@ -164,67 +164,120 @@ def _place_rooms_architectural(rooms: List[dict], total_w: float, total_h: float
 
     def _pack_rows(band_rooms: List[dict], fixed_height: float = None) -> None:
         """
-        Pack a pre-ordered list into rows. Last room in each row fills remaining width.
-        Small rooms (closets, pantry, etc.) are capped at 1.5× their natural size.
+        Pack a pre-ordered list into rows. Last non-small room in each row fills remaining width.
+        If total natural widths exceed total_w, rooms are proportionally shrunk first
+        to prevent wrapping small rooms into isolated overflow rows.
         Each row height = tallest room in that row (or fixed_height if specified).
         """
         nonlocal y_cursor
         if not band_rooms:
             return
 
-        # Split into rows by width
+        # Pre-shrink: if band's total natural width > total_w, shrink proportionally.
+        # This prevents small rooms from wrapping to an isolated row (e.g. a lone bathroom).
+        natural_widths = [max(4.0, round(float(r["width"]))) for r in band_rooms]
+        total_natural = sum(natural_widths)
+        if total_natural > total_w:
+            excess = total_natural - total_w
+            adjusted = []
+            for i, r in enumerate(band_rooms):
+                specs = IRC_ROOM_SPECS.get(r["type"], (4, 4))
+                shrink = excess * (natural_widths[i] / total_natural)
+                adjusted.append(max(float(specs[0]), round((natural_widths[i] - shrink) / 2) * 2))
+            # Iterative trim: remove rounding overage from non-small rooms largest-first
+            diff = sum(adjusted) - total_w
+            while diff > 0:
+                trimmed = False
+                for k in range(len(band_rooms) - 1, -1, -1):
+                    specs = IRC_ROOM_SPECS.get(band_rooms[k]["type"], (4, 4))
+                    headroom = adjusted[k] - specs[0]
+                    if headroom > 0:
+                        trim = min(diff, headroom)
+                        adjusted[k] -= trim
+                        diff -= trim
+                        trimmed = True
+                    if diff <= 0:
+                        break
+                if not trimmed:
+                    break  # all rooms at IRC minimum, cannot shrink further
+            natural_widths = adjusted
+
+        # Split into rows by (pre-shrunk) width
         rows: List[List[dict]] = []
+        row_widths_list: List[List[float]] = []
         cur_row: List[dict] = []
+        cur_widths: List[float] = []
         row_w = 0.0
-        for r in band_rooms:
-            if row_w + r["width"] > total_w and cur_row:
+        for i, r in enumerate(band_rooms):
+            w = natural_widths[i]
+            if row_w + w > total_w and cur_row:
                 rows.append(cur_row)
+                row_widths_list.append(cur_widths)
                 cur_row = []
+                cur_widths = []
                 row_w = 0.0
             cur_row.append(r)
-            row_w += r["width"]
+            cur_widths.append(w)
+            row_w += w
         if cur_row:
             rows.append(cur_row)
+            row_widths_list.append(cur_widths)
 
-        for row in rows:
-            # Band advances by the deepest room — no uniform height inflation.
-            # Each room keeps its own scaled height.
+        for row_idx, row in enumerate(rows):
             band_advance = fixed_height if fixed_height else max(r["height"] for r in row)
+            row_widths = list(row_widths_list[row_idx])
+
+            # Stretch last non-small room to fill remaining width.
+            # Never stretch small-only rows (orphan bathrooms etc.).
+            remaining = total_w - sum(row_widths)
+            if remaining > 0:
+                stretch_idx = None
+                for k in range(len(row) - 1, -1, -1):
+                    if row[k]["type"] not in _SMALL_ROOMS:
+                        stretch_idx = k
+                        break
+                if stretch_idx is not None:
+                    row_widths[stretch_idx] += remaining
+
             x_pos = 0.0
             for i, r in enumerate(row):
-                w = float(r["width"])
-                # Rooms keep their proportionally-scaled sizes — no band-filling stretch.
-                # This preserves architectural proportions and the target sqft accuracy.
-                w = max(4.0, round(w))
                 room_h = fixed_height if fixed_height else r["height"]
                 placed.append({
                     **r,
                     "x": round(x_pos),
                     "y": round(y_cursor),
-                    "width": int(w),
-                    "height": round(room_h),  # individual height, not row max
+                    "width": int(row_widths[i]),
+                    "height": round(room_h),
                 })
-                x_pos += w
+                x_pos += row_widths[i]
             y_cursor += round(band_advance)  # advance by tallest room in row
 
     # ── ZONE 0: ENTRY BAND (y=0, front of house) ──────────────────────────
-    # Garage always front-left (x=0), mudroom tucked beside garage, foyer at right
+    # Garage always front-left (x=0), mudroom tucked beside garage, foyer at right.
+    # If no garage is present, the foyer is relocated to the start of the social band
+    # (architecturally: entry → foyer → living area) to avoid a tiny isolated foyer
+    # at top-left with empty dead space beside it.
     entry = zone_rooms[0]
-    entry.sort(key=lambda r: {
-        "garage": 0, "mudroom": 1, "laundry_room": 2, "utility_room": 3, "foyer": 4
-    }.get(r["type"], 5))
+    has_garage = any(r["type"] == "garage" for r in entry)
+    if not has_garage and entry:
+        # No garage: prepend foyer to social zone, skip standalone entry band
+        zone_rooms[1] = entry + zone_rooms[1]
+        entry = []
+    else:
+        entry.sort(key=lambda r: {
+            "garage": 0, "mudroom": 1, "laundry_room": 2, "utility_room": 3, "foyer": 4
+        }.get(r["type"], 5))
     _pack_rows(entry)
 
     # ── ZONES 1+2: SOCIAL BAND (kitchen + living merged) ─────────────────
     # Merge public + kitchen into one open zone — reduces depth by ~12ft and
     # ensures kitchen is adjacent to living areas (not isolated two bands away).
-    # Order: living_room (street-facing), dining/family (middle), kitchen (rear-facing),
-    # pantry tucked at end, home_office at far side.
+    # Order: foyer (if no garage), living_room, dining/family, kitchen, pantry.
     social_rooms = zone_rooms[1] + zone_rooms[2]
     social_order = {
-        "living_room": 0, "home_office": 1,
-        "dining_room": 2, "family_room": 3,
-        "kitchen": 4, "pantry": 5,
+        "foyer": 0, "living_room": 1, "home_office": 2,
+        "dining_room": 3, "family_room": 4,
+        "kitchen": 5, "pantry": 6,
     }
     social_rooms.sort(key=lambda r: social_order.get(r["type"], 6))
     _pack_rows(social_rooms)
@@ -432,12 +485,13 @@ def _validate_irc(rooms: List[dict], total_w: float, total_h: float) -> List[dic
 
 def _snap_and_fill(rooms: List[dict], total_w: float, total_h: float) -> List[dict]:
     """Snap to 2ft grid and ensure zero-gap, tight-packed layout."""
-    # Snap to 2ft grid
+    # Snap to 2ft grid, enforcing IRC per-room-type minimums
     for r in rooms:
         r["x"] = round(r["x"] / 2) * 2
         r["y"] = round(r["y"] / 2) * 2
-        r["width"] = max(4, round(r["width"] / 2) * 2)
-        r["height"] = max(4, round(r["height"] / 2) * 2)
+        specs = IRC_ROOM_SPECS.get(r["type"], (4, 4))
+        r["width"] = max(specs[0], round(r["width"] / 2) * 2)
+        r["height"] = max(specs[1], round(r["height"] / 2) * 2)
 
     # Group rooms by Y position (same row)
     rows = {}
@@ -464,35 +518,72 @@ def _snap_and_fill(rooms: List[dict], total_w: float, total_h: float) -> List[di
             right_edge = last["x"] + last["width"]
             diff = tw - right_edge
 
-            # Only close tiny grid-snapping gaps (≤ 2ft); all larger gaps are intentional.
-            # Shrinks are always applied to keep rooms within the footprint.
-            if diff > 2:
-                diff = 0  # preserve proportional sizing; gap is architectural open space
-            elif diff < 0:
-                pass  # shrinking is always allowed
-
+            # Close gaps and shrinks. For positive gaps, only stretch non-small rooms.
+            _SNAP_SMALL = {"closet","walk_in_closet","half_bath","pantry","mudroom",
+                           "laundry_room","utility_room","bathroom","ensuite_bathroom","foyer",
+                           "patio","deck","rear_patio","outdoor_living","front_porch"}
             if diff != 0:
-                # Try adjusting just the last room
+                last_min = IRC_ROOM_SPECS.get(last["type"], (4, 4))[0]
+                # For stretching (diff > 0), skip if last room is a small type
+                if diff > 0 and last["type"] in _SNAP_SMALL:
+                    diff = 0  # don't inflate small rooms in snap pass
                 new_w = last["width"] + diff
-                if new_w >= 4:
+                if new_w >= last_min:
                     last["width"] = new_w
                 else:
-                    # Last room too small — distribute shrinkage across all rooms
+                    # Last room can't shrink to min — distribute shrinkage across all rooms
                     excess = right_edge - tw
                     total_room_w = sum(r["width"] for r in row_rooms_sorted)
                     x_cursor = 0
                     for r in row_rooms_sorted:
                         shrink = round(excess * (r["width"] / total_room_w))
-                        r["width"] = max(4, r["width"] - shrink)
+                        r_min = IRC_ROOM_SPECS.get(r["type"], (4, 4))[0]
+                        r["width"] = max(r_min, r["width"] - shrink)
                         r["x"] = x_cursor
                         x_cursor += r["width"]
                     # Final adjustment on last room for exact fit
                     last = row_rooms_sorted[-1]
-                    last["width"] = max(4, tw - last["x"])
+                    last_min = IRC_ROOM_SPECS.get(last["type"], (4, 4))[0]
+                    last["width"] = max(last_min, tw - last["x"])
 
     # Ensure no overlaps remain after grid snapping
     rooms = _final_overlap_check(rooms, total_w)
 
+    return rooms
+
+
+_OUTDOOR_TYPES = {"patio", "deck", "rear_patio", "outdoor_living", "front_porch"}
+
+def _fill_vertical_gaps(rooms: List[dict], total_h: float) -> List[dict]:
+    """Extend rooms that have no room below them to fill the plan's total height.
+    Outdoor rooms (patio/deck) are not extended, and conditioned rooms are not
+    extended into the outdoor band even when the outdoor room is narrower."""
+    th = int(round(total_h))
+    # Find the y-start of the outdoor band (topmost outdoor room y position)
+    outdoor_y = th
+    for r in rooms:
+        if r["type"] in _OUTDOOR_TYPES:
+            outdoor_y = min(outdoor_y, r["y"])
+    for r in rooms:
+        if r["type"] in _OUTDOOR_TYPES:
+            continue  # never extend outdoor rooms
+        bottom = r["y"] + r["height"]
+        if bottom >= th:
+            continue
+        # Don't extend conditioned rooms into the outdoor band
+        if outdoor_y < th and bottom >= outdoor_y:
+            continue
+        rx1, rx2 = r["x"], r["x"] + r["width"]
+        has_room_below = any(
+            other is not r
+            and other["x"] < rx2 and other["x"] + other["width"] > rx1
+            and other["y"] >= bottom
+            for other in rooms
+        )
+        if not has_room_below:
+            # Cap extension at outdoor band start if outdoor rooms exist
+            target_h = outdoor_y if outdoor_y < th else th
+            r["height"] = target_h - r["y"]
     return rooms
 
 
@@ -713,6 +804,26 @@ def predict_floor_plan(constraints: dict, num_variants: int = 3,
 
         # Stage 5: Grid snap + gap fill (use actual height)
         placed = _snap_and_fill(placed, total_w, actual_h)
+        placed = _fill_vertical_gaps(placed, actual_h)
+
+        # Stage 5b: Sqft correction — if conditioned area significantly exceeds target,
+        # scale all conditioned room heights proportionally down to approach sqft.
+        _UNCOND = {"garage", "patio", "deck", "rear_patio", "outdoor_living", "front_porch"}
+        _FIXED_H = {"hallway"}  # hallway height is architecturally fixed
+        cond_rooms = [r for r in placed if r["type"] not in _UNCOND and r["type"] not in _FIXED_H]
+        cond_area = sum(r["width"] * r["height"] for r in cond_rooms)
+        if cond_area > sqft * 1.15:  # more than 15% over target
+            scale_h = sqft / cond_area
+            scale_h = max(0.6, min(1.0, scale_h))  # floor at 60% to prevent tiny rooms
+            for r in cond_rooms:
+                specs = IRC_ROOM_SPECS.get(r["type"], (4, 4))
+                new_h = max(specs[1], round(r["height"] * scale_h / 2) * 2)
+                r["height"] = new_h
+            # Recompute actual_h with new heights before re-snapping
+            if placed:
+                actual_h = max(total_h, max(r["y"] + r["height"] for r in placed))
+                actual_h = round(actual_h / 2) * 2
+            placed = _snap_and_fill(placed, total_w, actual_h)
 
         # Recompute actual height after snapping
         if placed:

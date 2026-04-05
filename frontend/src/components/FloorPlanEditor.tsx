@@ -180,8 +180,8 @@ export default function FloorPlanEditor({ plan, onUpdate }: Props) {
               <div className="inspector-title">Summary</div>
               <div className="stat-row"><span>Rooms</span><span>{plan.rooms.length}</span></div>
               <div className="stat-row">
-                <span>Floor area</span>
-                <span>{Math.round(plan.rooms.reduce((s, r) => s + r.width * r.height, 0)).toLocaleString()} sq ft</span>
+                <span>Living area</span>
+                <span>{Math.round(plan.rooms.filter(r => !['garage','patio','deck','rear_patio','outdoor_living','front_porch'].includes(r.type)).reduce((s, r) => s + r.width * r.height, 0)).toLocaleString()} sq ft</span>
               </div>
               <div className="stat-row">
                 <span>Footprint</span>

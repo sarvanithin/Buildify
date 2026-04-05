@@ -1,5 +1,76 @@
-import { useState } from 'react'
-import { Constraints } from '../types/floorplan'
+import { useState, useMemo } from 'react'
+import { Constraints, ValidationIssue } from '../types/floorplan'
+
+// ── Client-side feasibility validation (mirrors backend rules) ────────────────
+function validateConstraints(c: Constraints): ValidationIssue[] {
+  const issues: ValidationIssue[] = []
+  const { sqft, bedrooms, bathrooms, primarySuite, homeOffice, formalDining, laundry, garage, stories } = c
+  const secondary = Math.max(0, bedrooms - 1)
+  const sharedBaths = Math.max(0, bathrooms - 1)
+
+  // Base overhead: living(168) + kitchen(120) + hallway(200) + foyer(40)
+  let minSqft = 528
+  minSqft += primarySuite ? 240 : 168  // primary bed cluster
+  minSqft += secondary * 100           // secondary beds
+  minSqft += sharedBaths * 40          // shared baths
+  if (homeOffice)    minSqft += 90
+  if (formalDining)  minSqft += 121
+  if (laundry === 'room') minSqft += 30
+
+  if (sqft < minSqft) {
+    const parts: string[] = []
+    if (secondary) parts.push(`${secondary} secondary bedroom${secondary !== 1 ? 's' : ''}`)
+    parts.push(`${bathrooms} bathroom${bathrooms !== 1 ? 's' : ''}`)
+    if (homeOffice) parts.push('home office')
+    if (formalDining) parts.push('formal dining')
+    issues.push({
+      field: 'sqft',
+      severity: 'error',
+      message: 'Not enough space for this configuration.',
+      detail: `Your selections (${parts.join(', ')}) need at least ${minSqft.toLocaleString()} sqft. You set ${sqft.toLocaleString()} sqft. Increase size or reduce rooms.`,
+    })
+  }
+
+  const baseOverhead = 528 + (primarySuite ? 240 : 168)
+  const maxSecondary = Math.max(0, Math.floor((sqft - baseOverhead) / 100))
+  if (secondary > maxSecondary && sqft >= minSqft) {
+    issues.push({
+      field: 'bedrooms',
+      severity: 'error',
+      message: `${bedrooms} bedrooms is not feasible in ${sqft.toLocaleString()} sqft.`,
+      detail: `After essential rooms, only ${sqft - baseOverhead} sqft remains for secondary bedrooms (${maxSecondary} max at 100 sqft each). Reduce to ${maxSecondary + 1} total or increase sqft.`,
+    })
+  }
+
+  if (bathrooms > bedrooms + 1) {
+    issues.push({
+      field: 'bathrooms',
+      severity: 'warning',
+      message: `${bathrooms} bathrooms for ${bedrooms} bedrooms is unusual.`,
+      detail: `Standard practice is 1 bathroom per bedroom. Consider ${Math.min(bathrooms, bedrooms)} bathrooms.`,
+    })
+  }
+
+  if (stories === 2 && sqft < 1200) {
+    issues.push({
+      field: 'stories',
+      severity: 'warning',
+      message: 'Two-story layout under 1,200 sqft is cramped.',
+      detail: 'Staircase overhead is significant in small homes. Consider single-story or 1,200+ sqft.',
+    })
+  }
+
+  if (garage === '3car' && sqft < 1800) {
+    issues.push({
+      field: 'garage',
+      severity: 'warning',
+      message: 'A 3-car garage is disproportionate for this home size.',
+      detail: `3-car garages suit 1,800+ sqft homes. With ${sqft.toLocaleString()} sqft, a 1 or 2-car garage fits better.`,
+    })
+  }
+
+  return issues
+}
 
 interface Props {
   onGenerate: (c: Constraints, useMOE?: boolean) => void
@@ -158,6 +229,9 @@ export default function ConstraintForm({ onGenerate, loading }: Props) {
   const set = <K extends keyof Constraints>(field: K, value: Constraints[K]) =>
     setC(prev => ({ ...prev, [field]: value }))
 
+  const validationIssues = useMemo(() => validateConstraints(c), [c])
+  const hasErrors = validationIssues.some(i => i.severity === 'error')
+
   const sqftLabel = c.sqft >= 1000
     ? `${(c.sqft / 1000).toFixed(1).replace('.0', '')}k`
     : `${c.sqft}`
@@ -231,8 +305,8 @@ export default function ConstraintForm({ onGenerate, loading }: Props) {
           <span className="catalog-row-icon">🛏</span>
           <span className="catalog-row-label">Bedroom</span>
           <div className="catalog-row-right">
-            <Stepper value={c.bedrooms - (c.primarySuite ? 1 : 0)} min={0} max={7}
-              onChange={v => set('bedrooms', v + (c.primarySuite ? 1 : 0))} />
+            <Stepper value={c.bedrooms} min={1} max={8}
+              onChange={v => set('bedrooms', v)} />
           </div>
         </div>
 
@@ -337,12 +411,28 @@ export default function ConstraintForm({ onGenerate, loading }: Props) {
         </div>
       </div>
 
+      {/* ── Validation Issues ── */}
+      {validationIssues.length > 0 && (
+        <div className="catalog-validation">
+          {validationIssues.map((issue, i) => (
+            <div key={i} className={`catalog-validation-issue catalog-validation-${issue.severity}`}>
+              <div className="catalog-validation-header">
+                <span className="catalog-validation-icon">{issue.severity === 'error' ? '✕' : '⚠'}</span>
+                <strong>{issue.message}</strong>
+              </div>
+              <p className="catalog-validation-detail">{issue.detail}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ── Generate ── */}
       <div className="catalog-generate">
         <button
           className="catalog-generate-btn"
           onClick={() => onGenerate(c, true)}
-          disabled={loading}
+          disabled={loading || hasErrors}
+          title={hasErrors ? 'Fix errors above before generating' : ''}
         >
           {loading
             ? <><span className="catalog-spinner" /> Generating…</>

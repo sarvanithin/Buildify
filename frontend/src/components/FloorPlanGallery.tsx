@@ -28,8 +28,9 @@ function bathroomCount(plan: FloorPlan) {
     r.type === 'half_bath' || r.name.toLowerCase().includes('bath')
   ).length
 }
+const _UNCONDITIONED = new Set(['garage', 'patio', 'deck', 'rear_patio', 'outdoor_living', 'front_porch'])
 function totalSqft(plan: FloorPlan) {
-  return Math.round(plan.rooms.reduce((s, r) => s + r.width * r.height, 0))
+  return Math.round(plan.rooms.filter(r => !_UNCONDITIONED.has(r.type)).reduce((s, r) => s + r.width * r.height, 0))
 }
 
 export default function FloorPlanGallery({ plans, loading, onSelect }: Props) {

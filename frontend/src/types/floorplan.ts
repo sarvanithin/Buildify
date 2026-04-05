@@ -49,3 +49,10 @@ export interface Constraints {
   // Style
   ceilingHeight: 'standard' | 'high' | 'vaulted'   // 9ft / 10ft / 12ft
 }
+
+export interface ValidationIssue {
+  field: string
+  severity: 'error' | 'warning'
+  message: string
+  detail: string
+}
