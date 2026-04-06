@@ -11,11 +11,11 @@ class MOEConfig:
     num_experts: int = 8
     expert_hidden_dims: list = field(default_factory=lambda: [512, 256, 128])
     gating_hidden_dim: int = 256
-    top_k_experts: int = 4          # sparse routing: activate top-4 of 8
+    entropy_weight: float = 0.1     # soft gating entropy loss coefficient
     attention_heads: int = 4
     embedding_dim: int = 128
     input_features: int = 20        # encoded constraint vector size
-    max_rooms: int = 20
+    max_rooms: int = 25             # increased for two-story plans
     room_features: int = 7          # x, y, width, height, type_idx, zone, is_exterior
 
     # ── Training ────────────────────────────────────────────────────────────

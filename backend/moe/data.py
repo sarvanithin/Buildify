@@ -211,6 +211,119 @@ def _build_room_list(bedrooms: int, bathrooms: int, sqft: int,
     return rooms
 
 
+def _build_room_list_two_story(
+    bedrooms: int, bathrooms: int, sqft: int,
+    style: str, open_plan: bool, primary_suite: bool,
+    home_office: bool, formal_dining: bool,
+    garage: str, laundry: str, outdoor: str,
+) -> tuple:
+    """
+    Split a two-story program into Floor 1 and Floor 2 room lists.
+
+    F1 (~55% sqft): public spaces + garage + service + staircase
+    F2 (~45% sqft): all bedrooms + baths + upper hallway
+
+    Returns (f1_rooms, f2_rooms) where each room dict has a "floor" key.
+    """
+    sf = sqft / 2000.0
+    room_id = 0
+
+    def _dims(room_type: str, scale: float = 1.0):
+        specs = IRC_ROOM_SPECS[room_type]
+        t = min(1.0, max(0.0, (sf - 0.7) / 0.8))
+        w = specs[0] + (specs[4] - specs[0]) * t
+        h = specs[1] + (specs[5] - specs[1]) * t
+        return round(w * scale, 1), round(h * scale, 1)
+
+    def _make(rtype, name=None, scale=1.0, floor=1):
+        nonlocal room_id
+        w, h = _dims(rtype, scale)
+        r = {
+            "id": f"r{room_id}",
+            "type": rtype,
+            "name": name or rtype.replace("_", " ").title(),
+            "target_w": w, "target_h": h,
+            "zone": ZONE_MAP.get(rtype, 0),
+            "is_exterior": 1 if rtype in ("patio", "deck") else 0,
+            "floor": floor,
+        }
+        room_id += 1
+        return r
+
+    f1: list = []
+    f2: list = []
+
+    # ── Floor 1: Public + service ─────────────────────────────────────────
+    if open_plan:
+        f1.append(_make("living_room", "Great Room", scale=1.3))
+    else:
+        f1.append(_make("living_room"))
+        if formal_dining:
+            f1.append(_make("dining_room", "Formal Dining"))
+
+    f1.append(_make("kitchen"))
+    if not (open_plan and not formal_dining):
+        if not formal_dining:
+            f1.append(_make("dining_room", "Dining Area"))
+
+    f1.append(_make("foyer", "Entry Foyer"))
+
+    if home_office:
+        f1.append(_make("home_office", "Home Office"))
+
+    # Half bath on Floor 1
+    f1.append(_make("half_bath", "Powder Room"))
+
+    # Laundry
+    if laundry == "room":
+        f1.append(_make("laundry_room", "Laundry Room"))
+    elif laundry == "closet":
+        f1.append(_make("laundry_room", "Laundry Closet", scale=0.5))
+
+    # Garage
+    if garage == "1car":
+        f1.append(_make("garage", "1-Car Garage", scale=0.5))
+    elif garage == "2car":
+        f1.append(_make("garage", "2-Car Garage"))
+    elif garage == "3car":
+        f1.append(_make("garage", "3-Car Garage", scale=1.3))
+
+    if garage != "none":
+        f1.append(_make("mudroom", "Mudroom"))
+        f1.append(_make("pantry", "Pantry"))
+
+    # Staircase represented as a hallway segment on F1
+    f1.append(_make("hallway", "Staircase / Foyer Hall", scale=0.7))
+
+    # Outdoor stays on F1
+    if outdoor in ("patio", "both"):
+        f1.append(_make("patio", "Rear Patio"))
+    if outdoor in ("deck", "both"):
+        f1.append(_make("deck", "Rear Deck"))
+
+    # ── Floor 2: Private ──────────────────────────────────────────────────
+    if primary_suite:
+        f2.append(_make("master_bedroom", "Primary Suite", floor=2))
+        f2.append(_make("ensuite_bathroom", "Primary Bath", floor=2))
+        f2.append(_make("walk_in_closet", "Primary Closet", floor=2))
+    else:
+        f2.append(_make("master_bedroom", "Primary Bedroom", floor=2))
+        f2.append(_make("bathroom", "Primary Bath", floor=2))
+        f2.append(_make("closet", "Primary Closet", floor=2))
+
+    for i in range(1, bedrooms):
+        f2.append(_make("bedroom", f"Bedroom {i + 1}", floor=2))
+
+    shared_baths = max(0, bathrooms - 1)
+    for i in range(shared_baths):
+        f2.append(_make("bathroom", "Shared Bath" if i == 0 else f"Bath {i + 2}", floor=2))
+
+    # Upper hallway
+    f2.append(_make("hallway", "Upper Hall", scale=0.7, floor=2))
+
+    return f1, f2
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Layout solver (places rooms into x,y positions)
 # ─────────────────────────────────────────────────────────────────────────────

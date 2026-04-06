@@ -39,6 +39,7 @@ export default function FloorPlanEditor({ plan, onUpdate }: Props) {
   const [tab, setTab] = useState<MainTab>('plan')
   const [viewMode, setViewMode] = useState<ViewMode>('2d')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [activeFloor, setActiveFloor] = useState<number>(1)
   const [interiorRoom, setInteriorRoom] = useState<Room | null>(null)
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 })
   const containerRef = useRef<HTMLDivElement>(null)
@@ -114,6 +115,19 @@ export default function FloorPlanEditor({ plan, onUpdate }: Props) {
               </div>
             </div>
 
+            {viewMode === '2d' && plan.stories === 2 && (
+              <div className="floor-selector">
+                <button
+                  className={activeFloor === 1 ? 'active' : ''}
+                  onClick={() => setActiveFloor(1)}
+                >Floor 1</button>
+                <button
+                  className={activeFloor === 2 ? 'active' : ''}
+                  onClick={() => setActiveFloor(2)}
+                >Floor 2</button>
+              </div>
+            )}
+
             {viewMode === '2d' ? (
               <ArchPlan
                 plan={plan}
@@ -121,6 +135,7 @@ export default function FloorPlanEditor({ plan, onUpdate }: Props) {
                 onSelect={setSelectedId}
                 containerWidth={canvasSize.width}
                 containerHeight={canvasSize.height}
+                activeFloor={activeFloor}
               />
             ) : (
               <View3D plan={plan} initialMode={viewMode} />
@@ -132,7 +147,10 @@ export default function FloorPlanEditor({ plan, onUpdate }: Props) {
             <div className="inspector-section">
               <div className="inspector-title">Rooms</div>
               <div className="room-list">
-                {plan.rooms.map(room => (
+                {(plan.stories === 2
+                  ? plan.rooms.filter(r => (r.floor ?? 1) === activeFloor)
+                  : plan.rooms
+                ).map(room => (
                   <div
                     key={room.id}
                     className={`room-item ${room.id === selectedId ? 'selected' : ''}`}
