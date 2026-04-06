@@ -93,6 +93,9 @@ export default function FloorPlanGallery({ plans, loading, onSelect }: Props) {
           return (
             <div key={plan.id} className="charrette-card" onClick={() => onSelect(plan)}>
               <div className="charrette-card-label">{label}</div>
+              {plan.stories === 2 && (
+                <div className="charrette-two-story-badge">2 Stories</div>
+              )}
               <div className="charrette-card-preview">
                 <FloorPlanPreview plan={plan} width={280} height={200} />
               </div>
@@ -103,6 +106,7 @@ export default function FloorPlanGallery({ plans, loading, onSelect }: Props) {
                   {beds > 0 && <span className="charrette-stat">{beds} bed</span>}
                   {beds > 0 && baths > 0 && <span className="charrette-stat-sep">·</span>}
                   {baths > 0 && <span className="charrette-stat">{baths} bath</span>}
+                  {plan.stories === 2 && <><span className="charrette-stat-sep">·</span><span className="charrette-stat">2 fl</span></>}
                 </div>
                 <div className="charrette-card-dims">{fp} · {plan.rooms.length} rooms</div>
               </div>

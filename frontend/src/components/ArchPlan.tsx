@@ -875,11 +875,13 @@ function ScaleBar({ x, y, S }: { x: number; y: number; S: number }): React.React
 // ─── Title block ──────────────────────────────────────────────────────────────
 
 function TitleBlock({
-  plan, svgW, svgH, activeFloor,
-}: { plan: FloorPlan; svgW: number; svgH: number; activeFloor?: number }): React.ReactElement {
+  plan, svgW, svgH, activeFloor, allRooms,
+}: { plan: FloorPlan; svgW: number; svgH: number; activeFloor?: number; allRooms?: FloorPlan['rooms'] }): React.ReactElement {
   const y = svgH - TITLE_H
   const _UNCONDITIONED = new Set(['garage', 'patio', 'deck', 'rear_patio', 'outdoor_living', 'front_porch'])
-  const totalSF = Math.round(plan.rooms
+  // For two-story: show combined living area across both floors
+  const roomsForArea = allRooms ?? plan.rooms
+  const totalSF = Math.round(roomsForArea
     .filter(r => !_UNCONDITIONED.has(r.type))
     .reduce((s, r) => s + r.width * r.height, 0))
   return (
@@ -1101,6 +1103,7 @@ export default function ArchPlan({
       <TitleBlock
         plan={visiblePlan} svgW={svgW} svgH={svgH}
         activeFloor={isTwoStory ? activeFloor : undefined}
+        allRooms={isTwoStory ? plan.rooms : undefined}
       />
     </svg>
   )
