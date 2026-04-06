@@ -201,9 +201,17 @@ export default function FloorPlanEditor({ plan, onUpdate }: Props) {
                 <span>Living area</span>
                 <span>{Math.round(plan.rooms.filter(r => !['garage','patio','deck','rear_patio','outdoor_living','front_porch'].includes(r.type)).reduce((s, r) => s + r.width * r.height, 0)).toLocaleString()} sq ft</span>
               </div>
+              {plan.stories === 2 && (
+                <div className="stat-row">
+                  <span>Stories</span><span>2-Story</span>
+                </div>
+              )}
               <div className="stat-row">
                 <span>Footprint</span>
-                <span>{Math.round(plan.totalWidth)}' × {Math.round(plan.totalHeight)}'</span>
+                <span>
+                  {Math.round(plan.totalWidth)}' × {Math.round(plan.totalHeight)}'
+                  {plan.stories === 2 && plan.floor2Height ? ` + ${Math.round(plan.floor2Height)}'` : ''}
+                </span>
               </div>
               <div className="stat-row"><span>Ceiling</span><span>{ceilH} ft</span></div>
             </div>

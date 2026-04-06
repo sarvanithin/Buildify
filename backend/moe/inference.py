@@ -1019,31 +1019,52 @@ def _generate_two_story_variant(
     f1_sized = _size(f1_rooms_raw)
     f2_sized = _size(f2_rooms_raw)
 
-    # Shared footprint width — derived from F1 (larger band)
-    f1_area  = sum(r["width"] * r["height"] for r in f1_sized
-                   if r["type"] not in _OUTDOOR_TYPES)
-    aspect   = 1.4
-    total_w  = max(30, min(80, round(math.sqrt(f1_area * aspect) / 2) * 2))
+    # ── Footprint width ───────────────────────────────────────────────────
+    # Base width on target sqft, not just F1 rooms — ensures realistic
+    # proportions even without a garage (30' is too narrow for a two-story).
+    # Typical US two-story: ~40–50' wide.  Each floor ≈ sqft/2 SF.
+    aspect = 1.4
+    floor_area_target = sqft * 0.5
+    total_w = max(36, min(80, round(math.sqrt(floor_area_target * aspect) / 2) * 2))
 
-    total_h_f1 = max(25, min(60, round(math.sqrt(f1_area / aspect) / 2) * 2))
-    f2_area  = sum(r["width"] * r["height"] for r in f2_sized)
-    total_h_f2 = max(20, min(50, round(math.sqrt(f2_area / aspect) / 2) * 2))
+    # ── Per-floor heights from actual room areas (not full-house estimate) ─
+    # Using actual F1/F2 room areas prevents the empty dead band that appears
+    # when the solver reserves height for zones that have no rooms on that floor.
+    f1_cond_area = sum(r["width"] * r["height"] for r in f1_sized
+                       if r["type"] not in _OUTDOOR_TYPES)
+    f1_out_area  = sum(r["width"] * r["height"] for r in f1_sized
+                       if r["type"] in _OUTDOOR_TYPES)
+    # Height = conditioned band height + outdoor band depth
+    total_h_f1 = max(20, round((f1_cond_area / total_w + f1_out_area / total_w) / 2) * 2 + 4)
+    total_h_f1 = min(60, total_h_f1)
+
+    f2_area = sum(r["width"] * r["height"] for r in f2_sized)
+    total_h_f2 = max(18, round((f2_area / total_w) / 2) * 2 + 4)
+    total_h_f2 = min(50, total_h_f2)
 
     # Place each floor independently
     f1_placed = _place_rooms_architectural(f1_sized, total_w, total_h_f1, sqft, expert_weights)
     f2_placed = _place_rooms_architectural(f2_sized, total_w, total_h_f2, sqft, expert_weights)
 
-    # Actual heights after placement
-    f1_h = max(total_h_f1, max((r["y"] + r["height"] for r in f1_placed), default=total_h_f1))
-    f1_h = round(f1_h / 2) * 2
-    f2_h = max(total_h_f2, max((r["y"] + r["height"] for r in f2_placed), default=total_h_f2))
-    f2_h = round(f2_h / 2) * 2
+    # Snap and fill with the height derived from actual placement extent,
+    # NOT the estimate — this eliminates the empty bottom band.
+    def _trim_height(placed, fallback):
+        if not placed:
+            return fallback
+        h = max(r["y"] + r["height"] for r in placed)
+        return max(fallback // 2, round(h / 2) * 2)
 
-    # Snap and fill each floor
+    f1_h = _trim_height(f1_placed, total_h_f1)
+    f2_h = _trim_height(f2_placed, total_h_f2)
+
     f1_placed = _snap_and_fill(f1_placed, total_w, f1_h)
     f1_placed = _fill_vertical_gaps(f1_placed, f1_h)
+    # Recompute after fill — outdoor rooms may have extended
+    f1_h = _trim_height(f1_placed, f1_h)
+
     f2_placed = _snap_and_fill(f2_placed, total_w, f2_h)
     f2_placed = _fill_vertical_gaps(f2_placed, f2_h)
+    f2_h = _trim_height(f2_placed, f2_h)
 
     # Staircase alignment: find staircase on F1, place upper hall at same X on F2
     stair = next((r for r in f1_placed if r["type"] == "hallway"
