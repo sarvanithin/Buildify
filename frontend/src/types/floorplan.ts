@@ -7,6 +7,7 @@ export interface Room {
   width: number
   height: number
   color: string
+  floor?: number   // 1 or 2 (undefined = single-story)
 }
 
 export interface Door {
@@ -15,6 +16,7 @@ export interface Door {
   isVertical: boolean
   roomA: string
   roomB: string
+  floor?: number
 }
 
 export interface FloorPlan {
@@ -22,7 +24,9 @@ export interface FloorPlan {
   name: string
   totalWidth: number
   totalHeight: number
+  floor2Height?: number   // only present for two-story plans
   ceilingHeight: number   // feet
+  stories?: number        // 1 (default) or 2
   rooms: Room[]
   doors: Door[]
 }

@@ -52,6 +52,7 @@ export interface ArchPlanProps {
   onSelect: (id: string | null) => void
   containerWidth: number
   containerHeight: number
+  activeFloor?: number   // 1 or 2 — for two-story plans; defaults to 1
 }
 
 interface RoomPx {
@@ -874,8 +875,8 @@ function ScaleBar({ x, y, S }: { x: number; y: number; S: number }): React.React
 // ─── Title block ──────────────────────────────────────────────────────────────
 
 function TitleBlock({
-  plan, svgW, svgH,
-}: { plan: FloorPlan; svgW: number; svgH: number }): React.ReactElement {
+  plan, svgW, svgH, activeFloor,
+}: { plan: FloorPlan; svgW: number; svgH: number; activeFloor?: number }): React.ReactElement {
   const y = svgH - TITLE_H
   const _UNCONDITIONED = new Set(['garage', 'patio', 'deck', 'rear_patio', 'outdoor_living', 'front_porch'])
   const totalSF = Math.round(plan.rooms
@@ -886,17 +887,16 @@ function TitleBlock({
       <rect x={0} y={y} width={svgW} height={TITLE_H} fill="white" stroke="#1a1a1a" strokeWidth={0.5} />
       <line x1={svgW * 0.4} y1={y} x2={svgW * 0.4} y2={svgH} stroke="#1a1a1a" strokeWidth={0.5} />
       <line x1={svgW * 0.72} y1={y} x2={svgW * 0.72} y2={svgH} stroke="#1a1a1a" strokeWidth={0.5} />
-      {/* Plan name */}
       <text x={svgW * 0.2} y={y + 18} textAnchor="middle"
         fontFamily="system-ui, Arial" fontSize={12} fontWeight="700" fill="#1a1a1a">{plan.name.toUpperCase()}</text>
       <text x={svgW * 0.2} y={y + 33} textAnchor="middle"
         fontFamily="system-ui, Arial" fontSize={9} fill="#555">ARCHITECTURAL FLOOR PLAN</text>
-      {/* Center label */}
       <text x={svgW * 0.56} y={y + 18} textAnchor="middle"
-        fontFamily="system-ui, Arial" fontSize={11} fontWeight="600" fill="#1a1a1a">FLOOR PLAN</text>
+        fontFamily="system-ui, Arial" fontSize={11} fontWeight="600" fill="#1a1a1a">
+        {activeFloor ? `FLOOR ${activeFloor} PLAN` : 'FLOOR PLAN'}
+      </text>
       <text x={svgW * 0.56} y={y + 33} textAnchor="middle"
         fontFamily="system-ui, Arial" fontSize={9} fill="#555">NOT FOR CONSTRUCTION</text>
-      {/* Stats */}
       <text x={svgW * 0.86} y={y + 16} textAnchor="middle"
         fontFamily="system-ui, Arial" fontSize={9} fill="#555">LIVING AREA</text>
       <text x={svgW * 0.86} y={y + 28} textAnchor="middle"
@@ -915,29 +915,45 @@ export default function ArchPlan({
   onSelect,
   containerWidth,
   containerHeight,
+  activeFloor = 1,
 }: ArchPlanProps): React.ReactElement {
   const svgW = containerWidth
   const svgH = containerHeight
 
+  // For two-story plans, filter rooms + use correct height for the active floor
+  const isTwoStory = plan.stories === 2
+  const visibleRooms = isTwoStory
+    ? plan.rooms.filter(r => (r.floor ?? 1) === activeFloor)
+    : plan.rooms
+  const visibleHeight = isTwoStory && activeFloor === 2
+    ? (plan.floor2Height ?? plan.totalHeight)
+    : plan.totalHeight
+  const visiblePlan = isTwoStory
+    ? { ...plan, rooms: visibleRooms, totalHeight: visibleHeight }
+    : plan
+
   const { S, ox, oy } = useMemo(
-    () => computeLayout(plan, svgW, svgH),
-    [plan, svgW, svgH],
+    () => computeLayout(visiblePlan, svgW, svgH),
+    [visiblePlan, svgW, svgH],
   )
 
   const roomPxs: RoomPx[] = useMemo(
-    () => plan.rooms.map(r => toRoomPx(r, ox, oy, S)),
-    [plan.rooms, ox, oy, S],
+    () => visibleRooms.map(r => toRoomPx(r, ox, oy, S)),
+    [visibleRooms, ox, oy, S],
   )
 
-  const adjacencies = useMemo(() => detectAdjacencies(plan.rooms), [plan.rooms])
-  
+  const adjacencies = useMemo(() => detectAdjacencies(visibleRooms), [visibleRooms])
+
   const doors = useMemo(() => {
-    if (plan.doors && plan.doors.length > 0) {
-      return plan.doors.map(d => {
-        const roomA = plan.rooms.find(r => r.id === d.roomA)!
+    const activeDoors = isTwoStory
+      ? (plan.doors ?? []).filter(d => (d.floor ?? 1) === activeFloor)
+      : (plan.doors ?? [])
+    if (activeDoors.length > 0) {
+      return activeDoors.map(d => {
+        const roomA = visibleRooms.find(r => r.id === d.roomA)!
+        if (!roomA) return null
         let wall: 'north' | 'south' | 'east' | 'west' = 'west'
         let offsetFrac = 0.5
-
         if (d.isVertical) {
           wall = (Math.abs(d.x - roomA.x) < 0.1) ? 'west' : 'east'
           offsetFrac = (d.y - roomA.y) / roomA.height
@@ -945,31 +961,29 @@ export default function ArchPlan({
           wall = (Math.abs(d.y - roomA.y) < 0.1) ? 'north' : 'south'
           offsetFrac = (d.x - roomA.x) / roomA.width
         }
-
         return {
-          roomId: d.roomA,
-          wall,
-          offsetFrac,
-          widthFt: 3,
-          hingeRight: false,
-          sliding: roomA.type === 'closet' || roomA.type === 'garage'
+          roomId: d.roomA, wall, offsetFrac,
+          widthFt: 3, hingeRight: false,
+          sliding: roomA.type === 'closet' || roomA.type === 'garage',
         } as DoorSpec
-      })
+      }).filter(Boolean) as DoorSpec[]
     }
-    return planDoors(plan.rooms, plan, adjacencies)
-  }, [plan, adjacencies])
+    return planDoors(visibleRooms, visiblePlan, adjacencies)
+  }, [plan, isTwoStory, activeFloor, visibleRooms, visiblePlan, adjacencies])
 
-  const windows = useMemo(() => planWindows(plan.rooms, plan, adjacencies), [plan, adjacencies])
+  const windows = useMemo(
+    () => planWindows(visibleRooms, visiblePlan, adjacencies),
+    [visibleRooms, visiblePlan, adjacencies],
+  )
 
-  // Build lookup maps
   const roomPxMap = useMemo(() => {
     const m = new Map<string, RoomPx>()
     roomPxs.forEach(rp => m.set(rp.room.id, rp))
     return m
   }, [roomPxs])
 
-  const planW = plan.totalWidth  * S
-  const planH = plan.totalHeight * S
+  const planW = visiblePlan.totalWidth  * S
+  const planH = visiblePlan.totalHeight * S
 
   return (
     <svg
@@ -980,12 +994,11 @@ export default function ArchPlan({
         if ((e.target as SVGElement).tagName === 'svg') onSelect(null)
       }}
     >
-      {/* Paper background */}
       <rect x={0} y={0} width={svgW} height={svgH} fill={BG} />
 
       {/* Subtle grid */}
       <g opacity={0.35}>
-        {Array.from({ length: Math.ceil(plan.totalWidth / 5) + 1 }, (_, i) => i * 5).map(x => {
+        {Array.from({ length: Math.ceil(visiblePlan.totalWidth / 5) + 1 }, (_, i) => i * 5).map(x => {
           const px = ox + x * S
           return (
             <line key={`gx${x}`}
@@ -995,7 +1008,7 @@ export default function ArchPlan({
             />
           )
         })}
-        {Array.from({ length: Math.ceil(plan.totalHeight / 5) + 1 }, (_, i) => i * 5).map(y => {
+        {Array.from({ length: Math.ceil(visiblePlan.totalHeight / 5) + 1 }, (_, i) => i * 5).map(y => {
           const py = oy + y * S
           return (
             <line key={`gy${y}`}
@@ -1029,7 +1042,7 @@ export default function ArchPlan({
         ))}
       </g>
 
-      {/* ── Window symbols (rendered below walls so walls overlap them) ── */}
+      {/* ── Window symbols ── */}
       <g>
         {windows.map((ws, i) => {
           const rp = roomPxMap.get(ws.roomId)
@@ -1038,7 +1051,7 @@ export default function ArchPlan({
         })}
       </g>
 
-      {/* ── Walls (room outlines — drawn thick) ── */}
+      {/* ── Walls ── */}
       <g>
         {roomPxs.map(rp => (
           <rect
@@ -1053,17 +1066,16 @@ export default function ArchPlan({
         ))}
       </g>
 
-      {/* ── Outer plan boundary (extra-thick) ── */}
+      {/* ── Outer plan boundary ── */}
       <rect
         x={ox} y={oy}
         width={planW} height={planH}
-        fill="none"
-        stroke="#1a1a1a"
+        fill="none" stroke="#1a1a1a"
         strokeWidth={WALL_W + 2}
         style={{ pointerEvents: 'none' }}
       />
 
-      {/* ── Door symbols (rendered on top of walls) ── */}
+      {/* ── Door symbols ── */}
       <g>
         {doors.map((ds, i) => {
           const rp = roomPxMap.get(ds.roomId)
@@ -1083,17 +1095,13 @@ export default function ArchPlan({
         ))}
       </g>
 
-      {/* ── Dimension lines ── */}
-      <DimensionLines plan={plan} ox={ox} oy={oy} S={S} />
-
-      {/* ── North arrow (top-right of plan area) ── */}
+      <DimensionLines plan={visiblePlan} ox={ox} oy={oy} S={S} />
       <NorthArrow x={ox + planW + 38} y={oy + 28} />
-
-      {/* ── Scale bar (bottom-right of plan area) ── */}
       <ScaleBar x={ox + planW - 10 * S - 5} y={oy + planH + 18} S={S} />
-
-      {/* ── Title block ── */}
-      <TitleBlock plan={plan} svgW={svgW} svgH={svgH} />
+      <TitleBlock
+        plan={visiblePlan} svgW={svgW} svgH={svgH}
+        activeFloor={isTwoStory ? activeFloor : undefined}
+      />
     </svg>
   )
 }

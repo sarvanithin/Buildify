@@ -67,55 +67,43 @@ class ConstraintEncoder(nn.Module):
 # Sparse Top-K Gating Network
 # ─────────────────────────────────────────────────────────────────────────────
 
-class SparseGating(nn.Module):
+class SoftGating(nn.Module):
     """
-    Sparse gating network: routes inputs to top-K experts.
-    Includes noise for exploration during training and
-    load-balancing auxiliary loss to prevent expert collapse.
+    Soft MoE gating: all experts contribute via softmax weights.
+    Fully differentiable — no top-k discrete selection, no token dropping.
+    Entropy maximisation encourages balanced expert utilisation without
+    a separate auxiliary load-balancing loss.
     """
 
     def __init__(self, config: MOEConfig):
         super().__init__()
-        self.top_k = config.top_k_experts
         self.num_experts = config.num_experts
+        self.entropy_weight = config.entropy_weight
 
         self.gate = nn.Sequential(
             nn.Linear(config.embedding_dim, config.gating_hidden_dim),
             nn.GELU(),
             nn.Linear(config.gating_hidden_dim, config.num_experts),
         )
-        # Learnable noise for exploration
-        self.noise_linear = nn.Linear(config.embedding_dim, config.num_experts)
 
     def forward(self, x: torch.Tensor, training: bool = True):
         """
         x: (batch, embedding_dim)
-        returns: (weights, indices, aux_loss)
-            weights: (batch, top_k) — normalized weights for selected experts
-            indices: (batch, top_k) — indices of selected experts
-            aux_loss: scalar — load balancing loss
+        returns: (weights, aux_loss)
+            weights:  (batch, num_experts) — softmax over all experts
+            aux_loss: scalar — entropy regularisation (maximise diversity)
         """
-        logits = self.gate(x)  # (batch, num_experts)
+        logits = self.gate(x)                            # (batch, E)
+        weights = F.softmax(logits, dim=-1)              # all experts ≥ 0, sum = 1
 
-        if training:
-            noise = torch.randn_like(logits) * F.softplus(self.noise_linear(x))
-            logits = logits + noise
+        # Entropy maximisation: −H encourages equal expert use (no collapse)
+        entropy = -(weights * (weights + 1e-8).log()).sum(-1).mean()
+        aux_loss = -self.entropy_weight * entropy
 
-        # Top-K selection
-        top_k_logits, indices = torch.topk(logits, self.top_k, dim=-1)
-        weights = F.softmax(top_k_logits, dim=-1)  # (batch, top_k)
-
-        # Load balancing auxiliary loss
-        # Encourages equal usage of all experts
-        gate_probs = F.softmax(logits, dim=-1)  # (batch, num_experts)
-        expert_usage = gate_probs.mean(dim=0)   # (num_experts,)
-        target = torch.ones_like(expert_usage) / self.num_experts
-        aux_loss = F.mse_loss(expert_usage, target) * self.num_experts
-
-        return weights, indices, aux_loss
+        return weights, aux_loss
 
     def get_all_weights(self, x: torch.Tensor) -> torch.Tensor:
-        """Get full softmax weights over all experts (for visualization)."""
+        """Full softmax weights over all experts (for visualisation)."""
         logits = self.gate(x)
         return F.softmax(logits, dim=-1)
 
@@ -247,7 +235,7 @@ class BuildifyMOE(nn.Module):
         self.config = config or MOEConfig()
 
         self.encoder = ConstraintEncoder(self.config)
-        self.gating = SparseGating(self.config)
+        self.gating = SoftGating(self.config)
         self.experts = create_experts(self.config)
         self.decoder = RoomDecoder(self.config)
 
@@ -276,28 +264,15 @@ class BuildifyMOE(nn.Module):
         # 1. Encode constraints
         embedded = self.encoder(constraints)  # (batch, dim)
 
-        # 2. Gate: select top-K experts
-        weights, indices, aux_loss = self.gating(
-            embedded, training=self.training
-        )
+        # 2. Gate: soft weights over all experts (fully differentiable)
+        weights, aux_loss = self.gating(embedded, training=self.training)
 
-        # 3. Run selected experts and mix
-        batch_size = embedded.shape[0]
+        # 3. All experts contribute — weighted sum (no top-k, no token dropping)
         mixed = torch.zeros_like(embedded)
-
-        for i in range(self.config.top_k_experts):
-            expert_idx = indices[:, i]  # (batch,)
-            expert_weight = weights[:, i:i + 1]  # (batch, 1)
-
-            # Run each expert for each sample
-            expert_outputs = torch.zeros_like(embedded)
-            for e_idx in range(self.config.num_experts):
-                mask = (expert_idx == e_idx)
-                if mask.any():
-                    expert_out = self.experts[e_idx](embedded[mask])
-                    expert_outputs[mask] = expert_out
-
-            mixed = mixed + expert_weight * expert_outputs
+        for e_idx in range(self.config.num_experts):
+            expert_out = self.experts[e_idx](embedded)
+            expert_weight = weights[:, e_idx:e_idx + 1]  # (batch, 1)
+            mixed = mixed + expert_weight * expert_out
 
         # 4. Residual connection + projection
         context = self.mixture_proj(mixed) + embedded

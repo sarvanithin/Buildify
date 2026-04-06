@@ -27,6 +27,7 @@ from .model import BuildifyMOE
 from .data import (
     encode_constraints, IRC_ROOM_SPECS, ZONE_MAP,
     STYLE_TEMPLATES, ADJACENCY_RULES, _build_room_list,
+    _build_room_list_two_story,
 )
 from .experts import EXPERT_NAMES
 
@@ -75,7 +76,10 @@ def load_model(config: MOEConfig = None) -> BuildifyMOE:
 
     if weights_path.exists():
         checkpoint = torch.load(weights_path, map_location="cpu", weights_only=False)
-        model.load_state_dict(checkpoint["model_state_dict"])
+        state = checkpoint["model_state_dict"]
+        # V1 checkpoints have SparseGating keys not present in SoftGating — drop them
+        state = {k: v for k, v in state.items() if not k.startswith("gating.noise_linear")}
+        model.load_state_dict(state, strict=False)
         print(f"[MOE] Loaded weights from {weights_path}")
     else:
         print(f"[MOE] No weights found at {weights_path} — using untrained model")
@@ -646,6 +650,43 @@ def predict_floor_plan(constraints: dict, num_variants: int = 3,
         garage, laundry, outdoor,
     )
 
+    # ── TWO-STORY PATH ────────────────────────────────────────────────────────
+    if stories == 2:
+        two_story_names = [
+            "MOE Plan A — Two Story",
+            "MOE Plan B — Two Story",
+            "MOE Plan C — Two Story",
+            "MOE Plan D — Two Story",
+            "MOE Plan E — Two Story",
+        ]
+        plans = []
+        for v in range(num_variants):
+            variant_expert_w = dict(expert_weights)
+            if v > 0:
+                rng = random.Random(v * 42)
+                for key in variant_expert_w:
+                    variant_expert_w[key] *= (0.85 + rng.random() * 0.3)
+                total_w_sum = sum(variant_expert_w.values())
+                if total_w_sum > 0:
+                    for key in variant_expert_w:
+                        variant_expert_w[key] /= total_w_sum
+            plan = _generate_two_story_variant(
+                constraints=constraints,
+                expert_weights=variant_expert_w,
+                variant_name=two_story_names[v] if v < len(two_story_names) else f"MOE Plan {v + 1} — Two Story",
+                ceiling_ft=ceiling_ft,
+                config=config,
+            )
+            plans.append(plan)
+        confidence = _calculate_confidence(expert_weights, plans, sqft)
+        return {
+            "plans": plans,
+            "expert_weights": expert_weights,
+            "confidence": confidence,
+            "irc_compliant": True,
+        }
+
+    # ── SINGLE-STORY PATH ─────────────────────────────────────────────────────
     # Generate variants
     plans = []
     variant_names = [
@@ -933,6 +974,114 @@ def _add_doors(rooms: List[dict]) -> List[dict]:
                     processed_pairs.add(pair)
 
     return doors
+
+
+def _generate_two_story_variant(
+    constraints: dict,
+    expert_weights: dict,
+    variant_name: str,
+    ceiling_ft: int,
+    config: MOEConfig,
+) -> dict:
+    """
+    Build a two-story plan using the zone-solver twice:
+      Floor 1 — public spaces + garage + staircase
+      Floor 2 — all bedrooms + baths + upper hall
+
+    Both floors share the same total_w.  The staircase on F1 aligns
+    (same X position) with the upper hall on F2.
+    """
+    bedrooms      = constraints.get("bedrooms", 3)
+    bathrooms     = constraints.get("bathrooms", 2)
+    sqft          = constraints.get("sqft", 1800)
+    style         = constraints.get("style", "modern")
+    open_plan     = constraints.get("openPlan", False)
+    primary_suite = constraints.get("primarySuite", True)
+    home_office   = constraints.get("homeOffice", False)
+    formal_dining = constraints.get("formalDining", False)
+    garage        = constraints.get("garage", "2car")
+    laundry       = constraints.get("laundry", "room")
+    outdoor       = constraints.get("outdoor", "patio")
+
+    f1_rooms_raw, f2_rooms_raw = _build_room_list_two_story(
+        bedrooms, bathrooms, sqft, style, open_plan, primary_suite,
+        home_office, formal_dining, garage, laundry, outdoor,
+    )
+
+    # Size rooms using MOE-influenced sizing
+    def _size(rooms_raw):
+        sized = []
+        for r in rooms_raw:
+            w, h = _moe_adjusted_size(r["type"], sqft, expert_weights)
+            sized.append({**r, "width": w, "height": h})
+        return sized
+
+    f1_sized = _size(f1_rooms_raw)
+    f2_sized = _size(f2_rooms_raw)
+
+    # Shared footprint width — derived from F1 (larger band)
+    f1_area  = sum(r["width"] * r["height"] for r in f1_sized
+                   if r["type"] not in _OUTDOOR_TYPES)
+    aspect   = 1.4
+    total_w  = max(30, min(80, round(math.sqrt(f1_area * aspect) / 2) * 2))
+
+    total_h_f1 = max(25, min(60, round(math.sqrt(f1_area / aspect) / 2) * 2))
+    f2_area  = sum(r["width"] * r["height"] for r in f2_sized)
+    total_h_f2 = max(20, min(50, round(math.sqrt(f2_area / aspect) / 2) * 2))
+
+    # Place each floor independently
+    f1_placed = _place_rooms_architectural(f1_sized, total_w, total_h_f1, sqft, expert_weights)
+    f2_placed = _place_rooms_architectural(f2_sized, total_w, total_h_f2, sqft, expert_weights)
+
+    # Actual heights after placement
+    f1_h = max(total_h_f1, max((r["y"] + r["height"] for r in f1_placed), default=total_h_f1))
+    f1_h = round(f1_h / 2) * 2
+    f2_h = max(total_h_f2, max((r["y"] + r["height"] for r in f2_placed), default=total_h_f2))
+    f2_h = round(f2_h / 2) * 2
+
+    # Snap and fill each floor
+    f1_placed = _snap_and_fill(f1_placed, total_w, f1_h)
+    f1_placed = _fill_vertical_gaps(f1_placed, f1_h)
+    f2_placed = _snap_and_fill(f2_placed, total_w, f2_h)
+    f2_placed = _fill_vertical_gaps(f2_placed, f2_h)
+
+    # Staircase alignment: find staircase on F1, place upper hall at same X on F2
+    stair = next((r for r in f1_placed if r["type"] == "hallway"
+                  and "stair" in r["name"].lower()), None)
+    upper_hall = next((r for r in f2_placed if r["type"] == "hallway"), None)
+    if stair and upper_hall:
+        upper_hall["x"] = stair["x"]
+        upper_hall["width"] = stair["width"]
+
+    # Tag floors
+    for r in f1_placed:
+        r["floor"] = 1
+    for r in f2_placed:
+        r["floor"] = 2
+
+    # Doors per floor
+    doors_f1 = _add_doors(f1_placed)
+    doors_f2 = _add_doors(f2_placed)
+    for d in doors_f2:
+        d["floor"] = 2
+
+    # Colour rooms
+    all_rooms = f1_placed + f2_placed
+    for r in all_rooms:
+        r["color"] = ROOM_COLORS.get(r["type"], "#e8e4dc")
+
+    return {
+        "id":           f"moe_{uuid.uuid4().hex[:8]}",
+        "name":         variant_name,
+        "totalWidth":   total_w,
+        "totalHeight":  f1_h,
+        "floor2Height": f2_h,
+        "ceilingHeight": ceiling_ft,
+        "stories":      2,
+        "rooms":        all_rooms,
+        "doors":        doors_f1 + doors_f2,
+        "generator":    "moe+two-story",
+    }
 
 
 def _calculate_confidence(expert_weights: dict, plans: list, target_sqft: int) -> float:
