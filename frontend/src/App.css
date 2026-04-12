@@ -1354,6 +1354,37 @@ select option {
   color: #2563EB;
 }
 
+/* ─── Plan overlay toggles (site plan, struct grid) ─────── */
+
+.view-overlay-toggles {
+  display: flex;
+  gap: 4px;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 11;
+}
+
+.overlay-btn {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text2);
+  transition: all 0.12s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.overlay-btn.active {
+  background: #EFF6FF;
+  border-color: #2563EB;
+  color: #2563EB;
+}
+
 /* ─── Elevation View ──────────────────────────────────── */
 
 .elevation-wrap {

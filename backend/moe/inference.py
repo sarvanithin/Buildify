@@ -304,11 +304,37 @@ def _place_rooms_architectural(rooms: List[dict], total_w: float, total_h: float
     # Living room is the largest flexible social space — placing it last lets it
     # absorb any remaining row width without over-stretching kitchen or dining.
     # Architectural flow: entry → kitchen/dining → living (open plan read from inside).
-    social_order = {
-        "foyer": 0, "kitchen": 1, "pantry": 2,
-        "home_office": 3, "dining_room": 4, "family_room": 5,
-        "living_room": 6,
-    }
+    # ── Variant-specific + style-specific layout configurations ──────────
+    # Each variant uses a distinct architectural arrangement strategy so the
+    # three generated plans look meaningfully different, not just jittered copies.
+    #
+    # V0 Optimized  — kitchen leads service zone, living room anchors rear width
+    # V1 Balanced   — living leads public zone, kitchen anchors rear (service corridor)
+    # V2 Traditional— dining adjacent to entry/foyer, kitchen mid, living flows rear
+    _VARIANT_SOCIAL = [
+        # V0: kitchen-forward (modern/contemporary default)
+        {"foyer": 0, "kitchen": 1, "pantry": 2, "home_office": 3,
+         "dining_room": 4, "family_room": 5, "living_room": 6},
+        # V1: living-forward (open living as main visual anchor)
+        {"foyer": 0, "living_room": 1, "family_room": 2, "home_office": 3,
+         "dining_room": 4, "pantry": 5, "kitchen": 6},
+        # V2: dining-adjacent-kitchen (cook-dine flow, living at rear)
+        {"foyer": 0, "dining_room": 1, "kitchen": 2, "pantry": 3,
+         "home_office": 4, "family_room": 5, "living_room": 6},
+    ]
+    social_order = dict(_VARIANT_SOCIAL[variant_seed % 3])
+
+    # Style personality overlay — modulates social order for architectural authenticity
+    style_lower = (style or "modern").lower()
+    if style_lower in ("traditional", "colonial", "craftsman"):
+        # Formal dining near entry; kitchen mid-plan; living at rear
+        social_order.update({"dining_room": 1, "kitchen": 3, "living_room": 6})
+    elif style_lower in ("farmhouse",):
+        # Kitchen is the "heart of home" — prominent, near centre
+        social_order.update({"kitchen": 2, "dining_room": 3, "living_room": 6})
+    elif style_lower in ("ranch",):
+        # Ranch = casual, living-first single floor
+        social_order.update({"living_room": 1, "family_room": 2, "kitchen": 4})
     social_rooms.sort(key=lambda r: social_order.get(r["type"], 6))
     _pack_rows(social_rooms)
 
@@ -330,10 +356,19 @@ def _place_rooms_architectural(rooms: List[dict], total_w: float, total_h: float
     # and share a wall — creating a door. Placing them between hallway and private
     # band creates a dead gap and leaves bedrooms disconnected from the hallway.
     private = zone_rooms[4] + [r for r in zone_rooms[3] if r["type"] != "hallway"]
-    suite_order = {
-        "master_bedroom": 0, "ensuite_bathroom": 1, "walk_in_closet": 2,
-        "bedroom": 3, "bathroom": 4, "closet": 5,
-    }
+    # Variant-specific suite placement creates meaningfully different bedroom wings:
+    # V0: Master suite cluster LEFT (most private at street-facing left end)
+    # V1: Secondaries LEFT → master suite RIGHT (most private at far-rear-right)
+    # V2: Master as island — closet leads, ensuite follows (dressing-room sequence)
+    _VARIANT_SUITE = [
+        {"master_bedroom": 0, "ensuite_bathroom": 1, "walk_in_closet": 2,
+         "bedroom": 3, "bathroom": 4, "closet": 5},
+        {"bedroom": 0, "bathroom": 1, "closet": 2,
+         "master_bedroom": 3, "walk_in_closet": 4, "ensuite_bathroom": 5},
+        {"walk_in_closet": 0, "master_bedroom": 1, "ensuite_bathroom": 2,
+         "bedroom": 3, "bathroom": 4, "closet": 5},
+    ]
+    suite_order = _VARIANT_SUITE[variant_seed % 3]
     private.sort(key=lambda r: suite_order.get(r["type"], 6))
     _pack_rows(private)
 

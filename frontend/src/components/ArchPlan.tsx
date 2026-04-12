@@ -59,7 +59,9 @@ export interface ArchPlanProps {
   onSelect: (id: string | null) => void
   containerWidth: number
   containerHeight: number
-  activeFloor?: number   // 1 or 2 — for two-story plans; defaults to 1
+  activeFloor?: number     // 1 or 2 — for two-story plans; defaults to 1
+  showSitePlan?: boolean   // overlay lot boundary + setback lines
+  showStructGrid?: boolean // overlay structural column grid at 16ft centres
 }
 
 interface RoomPx {
@@ -1008,6 +1010,8 @@ export default function ArchPlan({
   containerWidth,
   containerHeight,
   activeFloor = 1,
+  showSitePlan = false,
+  showStructGrid = false,
 }: ArchPlanProps): React.ReactElement {
   const svgW = containerWidth
   const svgH = containerHeight
@@ -1100,6 +1104,48 @@ export default function ArchPlan({
       </defs>
       <rect x={0} y={0} width={svgW} height={svgH} fill={BG} />
 
+      {/* ── Site plan context: lot boundary + setbacks ── */}
+      {showSitePlan && (() => {
+        const SETBACK_FRONT = 25   // ft front yard setback
+        const SETBACK_SIDE  = 8    // ft side yard setback
+        const SETBACK_REAR  = 20   // ft rear yard setback
+        const LOT_EXTRA     = 30   // ft extra lot beyond setbacks (each side)
+        const lotW = planW + (SETBACK_SIDE + LOT_EXTRA) * 2 * S
+        const lotH = planH + (SETBACK_FRONT + LOT_EXTRA) * S + (SETBACK_REAR + LOT_EXTRA) * S
+        const lotX = ox - (SETBACK_SIDE + LOT_EXTRA) * S
+        const lotY = oy - (SETBACK_FRONT + LOT_EXTRA) * S
+        const sbX  = ox - SETBACK_SIDE * S
+        const sbY  = oy - SETBACK_FRONT * S
+        const sbW  = planW + SETBACK_SIDE * 2 * S
+        const sbH  = planH + SETBACK_FRONT * S + SETBACK_REAR * S
+        return (
+          <g style={{ pointerEvents: 'none' }}>
+            {/* Lot boundary */}
+            <rect x={lotX} y={lotY} width={lotW} height={lotH}
+              fill="#f0f4e8" stroke="#7ab870" strokeWidth={1.0}
+              strokeDasharray="6 3" opacity={0.6} />
+            {/* Setback envelope */}
+            <rect x={sbX} y={sbY} width={sbW} height={sbH}
+              fill="none" stroke="#c8a040" strokeWidth={0.8}
+              strokeDasharray="4 4" opacity={0.7} />
+            {/* Labels */}
+            <text x={sbX + sbW / 2} y={sbY - 4} textAnchor="middle"
+              fontFamily="Arial" fontSize={9} fill="#9a6020" opacity={0.8}>
+              {SETBACK_FRONT}' FRONT SETBACK
+            </text>
+            <text x={sbX + sbW + 4} y={sbY + sbH / 2} textAnchor="start"
+              fontFamily="Arial" fontSize={8} fill="#9a6020" opacity={0.8}>
+              {SETBACK_SIDE}'
+            </text>
+            {/* Driveway (front-left if garage present) */}
+            {plan.rooms.some(r => r.type === 'garage') && (
+              <rect x={ox + 4 * S} y={lotY} width={20 * S} height={(SETBACK_FRONT + LOT_EXTRA) * S}
+                fill="#e8e4d8" stroke="#a89878" strokeWidth={0.5} opacity={0.5} />
+            )}
+          </g>
+        )
+      })()}
+
       {/* Subtle grid */}
       <g opacity={0.35}>
         {Array.from({ length: Math.ceil(visiblePlan.totalWidth / 5) + 1 }, (_, i) => i * 5).map(x => {
@@ -1123,6 +1169,44 @@ export default function ArchPlan({
           )
         })}
       </g>
+
+      {/* ── Structural column grid at 16ft centres ── */}
+      {showStructGrid && (() => {
+        const GRID_FT = 16
+        const cols = Array.from({ length: Math.ceil(visiblePlan.totalWidth  / GRID_FT) + 1 }, (_, i) => i * GRID_FT)
+        const rows2 = Array.from({ length: Math.ceil(visiblePlan.totalHeight / GRID_FT) + 1 }, (_, i) => i * GRID_FT)
+        return (
+          <g style={{ pointerEvents: 'none' }} opacity={0.55}>
+            {/* Grid lines */}
+            {cols.map(x => {
+              const px = ox + x * S
+              return <line key={`sgx${x}`} x1={px} y1={oy} x2={px} y2={oy + planH}
+                stroke="#2060c0" strokeWidth={0.4} strokeDasharray="3 4" />
+            })}
+            {rows2.map(y => {
+              const py = oy + y * S
+              return <line key={`sgy${y}`} x1={ox} y1={py} x2={ox + planW} y2={py}
+                stroke="#2060c0" strokeWidth={0.4} strokeDasharray="3 4" />
+            })}
+            {/* Column markers at intersections */}
+            {cols.map(x => rows2.map(y => {
+              const px = ox + x * S
+              const py = oy + y * S
+              const r = 3
+              return (
+                <g key={`sc${x}-${y}`}>
+                  <circle cx={px} cy={py} r={r} fill="white" stroke="#2060c0" strokeWidth={0.8} />
+                  <line x1={px - r} y1={py} x2={px + r} y2={py} stroke="#2060c0" strokeWidth={0.5} />
+                  <line x1={px} y1={py - r} x2={px} y2={py + r} stroke="#2060c0" strokeWidth={0.5} />
+                </g>
+              )
+            }))}
+            {/* Grid label */}
+            <text x={ox + planW + 6} y={oy + planH - 4}
+              fontFamily="Arial" fontSize={8} fill="#2060c0">16' STRUCT GRID</text>
+          </g>
+        )
+      })()}
 
       {/* ── Wall hatch bands — drawn first so room fills cover interior ── */}
       <g style={{ pointerEvents: 'none' }}>
