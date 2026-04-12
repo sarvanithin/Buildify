@@ -7,7 +7,7 @@ import SpecSchedule from './SpecSchedule'
 import CostPanel from './CostPanel'
 import DesignScore from './DesignScore'
 import ChatPanel from './ChatPanel'
-import { exportDxf } from '../api/client'
+import { exportDxf, exportPdf } from '../api/client'
 import ArchPlan from './ArchPlan'
 
 interface Props {
@@ -42,6 +42,8 @@ export default function FloorPlanEditor({ plan, onUpdate }: Props) {
   const [activeFloor, setActiveFloor] = useState<number>(1)
   const [interiorRoom, setInteriorRoom] = useState<Room | null>(null)
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 })
+  const [showSitePlan, setShowSitePlan] = useState(false)
+  const [showStructGrid, setShowStructGrid] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -93,7 +95,8 @@ export default function FloorPlanEditor({ plan, onUpdate }: Props) {
           ))}
         </div>
 
-        <button className="export-btn" onClick={() => exportDxf(plan)}>↓ Export CAD</button>
+        <button className="export-btn" onClick={() => exportPdf(plan)}>↓ PDF</button>
+        <button className="export-btn" onClick={() => exportDxf(plan)}>↓ CAD</button>
       </div>
 
       {/* ── Tab content ──────────────────────────────────────────────────── */}
@@ -116,6 +119,21 @@ export default function FloorPlanEditor({ plan, onUpdate }: Props) {
               </div>
             </div>
 
+            {viewMode === '2d' && (
+              <div className="view-overlay-toggles">
+                <button
+                  className={`overlay-btn ${showSitePlan ? 'active' : ''}`}
+                  onClick={() => setShowSitePlan(v => !v)}
+                  title="Show lot boundary and setback lines"
+                >Site</button>
+                <button
+                  className={`overlay-btn ${showStructGrid ? 'active' : ''}`}
+                  onClick={() => setShowStructGrid(v => !v)}
+                  title="Show 16ft structural column grid"
+                >Grid</button>
+              </div>
+            )}
+
             {viewMode === '2d' && plan.stories === 2 && (
               <div className="floor-selector">
                 <button
@@ -137,6 +155,8 @@ export default function FloorPlanEditor({ plan, onUpdate }: Props) {
                 containerWidth={canvasSize.width}
                 containerHeight={canvasSize.height}
                 activeFloor={activeFloor}
+                showSitePlan={showSitePlan}
+                showStructGrid={showStructGrid}
               />
             ) : (
               <View3D plan={plan} initialMode={viewMode} />

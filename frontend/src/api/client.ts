@@ -12,6 +12,22 @@ export async function generatePlans(constraints: Constraints): Promise<FloorPlan
   return data.plans
 }
 
+export async function exportPdf(plan: FloorPlan): Promise<void> {
+  const response = await api.post(
+    '/export/pdf',
+    { floor_plan: plan },
+    { responseType: 'blob' }
+  )
+  const url = URL.createObjectURL(response.data)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${plan.name.replace(/\s+/g, '_')}.pdf`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
 export async function exportDxf(plan: FloorPlan): Promise<void> {
   const response = await api.post(
     '/export/dxf',

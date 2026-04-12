@@ -362,6 +362,21 @@ async def render_room(request: RenderRequest):
         raise HTTPException(status_code=500, detail=f"Render failed: {str(e)}")
 
 
+@app.post("/api/export/pdf")
+async def export_pdf(request: ExportRequest):
+    try:
+        from pdf_export import export_to_pdf
+        pdf_bytes = export_to_pdf(request.floor_plan)
+        name = request.floor_plan.get("name", "floor_plan").replace(" ", "_")
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{name}.pdf"'},
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/export/dxf")
 async def export_dxf(request: ExportRequest):
     try:
