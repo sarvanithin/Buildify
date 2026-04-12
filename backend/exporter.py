@@ -51,7 +51,6 @@ def export_to_dxf(floor_plan: dict) -> bytes:
         )
         dim_text.set_placement((cx, cy - 0.6), align=TextEntityAlignment.MIDDLE_CENTER)
 
-    stream = io.BytesIO()
+    stream = io.StringIO()
     doc.write(stream)
-    stream.seek(0)
-    return stream.getvalue()
+    return stream.getvalue().encode("utf-8")

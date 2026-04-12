@@ -338,16 +338,37 @@ def _place_rooms_architectural(rooms: List[dict], total_w: float, total_h: float
     social_rooms.sort(key=lambda r: social_order.get(r["type"], 6))
     _pack_rows(social_rooms)
 
-    # ── ZONE 3: HALLWAY — full-width 4ft circulation spine ────────────────
+    # ── ZONE 3: HALLWAY — partial-width corridor serving bedroom wing ─────
+    # Real US house hallways span the bedroom cluster width, not the full
+    # footprint. The remaining width beside the hallway is absorbed by
+    # _fill_vertical_gaps extending social or private rooms into the gap.
+    # This produces a T-shaped or L-shaped circulation spine instead of
+    # a wasteful full-width dead corridor.
     hallway_rooms = zone_rooms[3]
     hallway = next((r for r in hallway_rooms if r["type"] == "hallway"), None)
     other_hall = [r for r in hallway_rooms if r["type"] != "hallway"]
     if hallway:
-        hallway_h = 4  # IRC R311.7: 36in min; 4ft is standard corridor depth (not sqft-scaled)
-        hallway["width"] = int(total_w)   # spans full footprint width
-        _pack_rows([hallway], fixed_height=hallway_h)
-    # NOTE: other_hall (half_bath etc.) is intentionally merged into the private band
-    # below so that half_baths are adjacent to bedrooms and share a connectable wall.
+        hallway_h = 4  # IRC R311.7: 36in min; 4ft standard corridor depth
+        # Estimate the natural width of the private bedroom cluster to size the hallway.
+        # Hallway serves the bedroom wing, not the full footprint — clamped [60%, 78%].
+        private_rooms = zone_rooms[4]
+        private_cluster_w = sum(
+            max(IRC_ROOM_SPECS.get(r["type"], (4, 4))[0], round(float(r.get("width", 10))))
+            for r in private_rooms
+        )
+        hallway_w = round(min(
+            int(total_w * 0.78),
+            max(int(total_w * 0.60), min(private_cluster_w, total_w)),
+        ) / 2) * 2
+        # Place directly (bypass _pack_rows stretch — hallway must stay partial-width)
+        hallway["width"]  = hallway_w
+        hallway["height"] = hallway_h
+        hallway["x"]      = 0
+        hallway["y"]      = round(y_cursor)
+        placed.append(hallway)
+        y_cursor += hallway_h
+    # NOTE: other_hall (half_bath etc.) merged into private band so half_baths
+    # share a wall with bedrooms — architecturally correct placement.
 
     # ── ZONE 4: PRIVATE BAND (bedrooms) ───────────────────────────────────
     # Master suite cluster first: master_bedroom → ensuite_bathroom → walk_in_closet
@@ -590,7 +611,8 @@ def _snap_and_fill(rooms: List[dict], total_w: float, total_h: float) -> List[di
             # Close gaps and shrinks. For positive gaps, only stretch non-small rooms.
             _SNAP_SMALL = {"closet","walk_in_closet","half_bath","pantry","mudroom",
                            "laundry_room","utility_room","bathroom","ensuite_bathroom","foyer",
-                           "patio","deck","rear_patio","outdoor_living","front_porch"}
+                           "patio","deck","rear_patio","outdoor_living","front_porch",
+                           "hallway"}  # hallway width is set architecturally; don't auto-stretch
             # Cap: prevent these room types from growing beyond a realistic max width
             # even if they end up alone in a row after rounding/wrapping.
             _SNAP_WIDTH_CAP = {
@@ -674,6 +696,34 @@ def _fill_vertical_gaps(rooms: List[dict], total_h: float) -> List[dict]:
             # Cap extension at outdoor band start if outdoor rooms exist
             target_h = outdoor_y if outdoor_y < th else th
             r["height"] = target_h - r["y"]
+    return rooms
+
+
+def _fill_hallway_gap(rooms: List[dict], total_w: float) -> List[dict]:
+    """
+    When the hallway is partial-width, extend the social room(s) directly above
+    the uncovered gap so there is no dead void beside the corridor.
+    Architecturally: the living/dining room naturally extends into the area not
+    served by the bedroom hallway — common in ranch-style and open-plan houses.
+    """
+    hallway = next((r for r in rooms if r["type"] == "hallway"), None)
+    if not hallway or hallway["width"] >= int(total_w) - 1:
+        return rooms  # full-width hallway — nothing to fix
+
+    gap_x     = hallway["x"] + hallway["width"]
+    gap_y     = hallway["y"]
+    gap_right = int(total_w)
+    _SKIP = {"garage", "hallway"} | _OUTDOOR_TYPES
+
+    for r in rooms:
+        if r["type"] in _SKIP:
+            continue
+        r_bottom = r["y"] + r["height"]
+        r_right  = r["x"] + r["width"]
+        # Room must touch the hallway's top edge AND overlap the uncovered column
+        if abs(r_bottom - gap_y) <= 2 and r_right > gap_x and r["x"] < gap_right:
+            r["height"] += hallway["height"]  # extend downward by hallway depth
+
     return rooms
 
 
@@ -1040,6 +1090,7 @@ def predict_floor_plan(constraints: dict, num_variants: int = 3,
         # Stage 5: Grid snap + gap fill (use actual height)
         placed = _snap_and_fill(placed, total_w, actual_h)
         placed = _fix_isolated_service_rooms(placed, total_w)
+        placed = _fill_hallway_gap(placed, total_w)   # fill gap beside partial-width hallway
         placed = _fill_vertical_gaps(placed, actual_h)
 
         # Stage 5b: Sqft correction — if conditioned area significantly exceeds target,
