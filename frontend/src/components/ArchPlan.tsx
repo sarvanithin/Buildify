@@ -10,10 +10,17 @@ import { FloorPlan, Room } from '../types/floorplan'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const MARGIN = 70          // px around plan for dimension lines
-const WALL_W = 5           // wall stroke width px
+const MARGIN = 80          // px around plan for dimension lines (two strings need more space)
 const TITLE_H = 48         // title block height px
 const BG = '#faf9f5'       // drafting paper cream
+
+// Wall lineweights (px)
+const WALL_EXT = 8         // exterior wall stroke width
+const WALL_INT = 4         // interior (shared) wall stroke — two rooms × half = 4px each
+const WALL_INNER = 0.9     // inner face line weight
+const WALL_INNER_INSET = 5 // inset of inner face line from wall centerline
+const WALL_GAP_W = WALL_EXT + 2   // opening width for door/window gaps
+const WALL_GAP_OFF = Math.round(WALL_GAP_W / 2)  // half-gap from wall centerline
 
 // ─── Room fill colours — very light architectural tints ───────────────────────
 
@@ -308,7 +315,7 @@ function DoorSymbol({
       const inset = spec.wall === 'south' ? -S * 0.25 : S * 0.25
       return (
         <g>
-          <rect x={gL} y={wallY - 3} width={dPx} height={6} fill={BG} />
+          <rect x={gL} y={wallY - WALL_GAP_OFF} width={dPx} height={WALL_GAP_W} fill={BG} />
           <line x1={gL} y1={wallY - 2} x2={gR} y2={wallY - 2} stroke="#1a1a1a" strokeWidth={1.5} />
           <line x1={gL} y1={wallY + 2} x2={gR} y2={wallY + 2} stroke="#1a1a1a" strokeWidth={1.5} />
           <line x1={gL + dPx * 0.5} y1={wallY - 2} x2={gL + dPx * 0.5} y2={wallY + inset} stroke="#1a1a1a" strokeWidth={1} />
@@ -322,7 +329,7 @@ function DoorSymbol({
       const inset = spec.wall === 'east' ? -S * 0.25 : S * 0.25
       return (
         <g>
-          <rect x={wallX - 3} y={gT} width={6} height={dPx} fill={BG} />
+          <rect x={wallX - WALL_GAP_OFF} y={gT} width={WALL_GAP_W} height={dPx} fill={BG} />
           <line x1={wallX - 2} y1={gT} x2={wallX - 2} y2={gB} stroke="#1a1a1a" strokeWidth={1.5} />
           <line x1={wallX + 2} y1={gT} x2={wallX + 2} y2={gB} stroke="#1a1a1a" strokeWidth={1.5} />
           <line x1={wallX - 2} y1={gT + dPx * 0.5} x2={wallX + inset} y2={gT + dPx * 0.5} stroke="#1a1a1a" strokeWidth={1} />
@@ -342,7 +349,7 @@ function DoorSymbol({
     if (!hr) {
       return (
         <g>
-          <rect x={gL} y={wallY - 3} width={dPx} height={6} fill={BG} />
+          <rect x={gL} y={wallY - WALL_GAP_OFF} width={dPx} height={WALL_GAP_W} fill={BG} />
           <line x1={gL} y1={wallY} x2={gL} y2={wallY - dPx} stroke="#1a1a1a" strokeWidth={1.5} />
           <path d={`M ${gL} ${wallY - dPx} A ${dPx} ${dPx} 0 0 1 ${gR} ${wallY}`}
             fill="none" stroke="#666" strokeWidth={1} strokeDasharray="4,3" />
@@ -351,7 +358,7 @@ function DoorSymbol({
     } else {
       return (
         <g>
-          <rect x={gL} y={wallY - 3} width={dPx} height={6} fill={BG} />
+          <rect x={gL} y={wallY - WALL_GAP_OFF} width={dPx} height={WALL_GAP_W} fill={BG} />
           <line x1={gR} y1={wallY} x2={gR} y2={wallY - dPx} stroke="#1a1a1a" strokeWidth={1.5} />
           <path d={`M ${gR} ${wallY - dPx} A ${dPx} ${dPx} 0 0 0 ${gL} ${wallY}`}
             fill="none" stroke="#666" strokeWidth={1} strokeDasharray="4,3" />
@@ -368,7 +375,7 @@ function DoorSymbol({
     if (!hr) {
       return (
         <g>
-          <rect x={gL} y={wallY - 3} width={dPx} height={6} fill={BG} />
+          <rect x={gL} y={wallY - WALL_GAP_OFF} width={dPx} height={WALL_GAP_W} fill={BG} />
           <line x1={gL} y1={wallY} x2={gL} y2={wallY + dPx} stroke="#1a1a1a" strokeWidth={1.5} />
           <path d={`M ${gL} ${wallY + dPx} A ${dPx} ${dPx} 0 0 0 ${gR} ${wallY}`}
             fill="none" stroke="#666" strokeWidth={1} strokeDasharray="4,3" />
@@ -377,7 +384,7 @@ function DoorSymbol({
     } else {
       return (
         <g>
-          <rect x={gL} y={wallY - 3} width={dPx} height={6} fill={BG} />
+          <rect x={gL} y={wallY - WALL_GAP_OFF} width={dPx} height={WALL_GAP_W} fill={BG} />
           <line x1={gR} y1={wallY} x2={gR} y2={wallY + dPx} stroke="#1a1a1a" strokeWidth={1.5} />
           <path d={`M ${gR} ${wallY + dPx} A ${dPx} ${dPx} 0 0 1 ${gL} ${wallY}`}
             fill="none" stroke="#666" strokeWidth={1} strokeDasharray="4,3" />
@@ -393,7 +400,7 @@ function DoorSymbol({
     const wallX = px + pw
     return (
       <g>
-        <rect x={wallX - 3} y={gT} width={6} height={dPx} fill={BG} />
+        <rect x={wallX - WALL_GAP_OFF} y={gT} width={WALL_GAP_W} height={dPx} fill={BG} />
         <line x1={wallX} y1={gT} x2={wallX - dPx} y2={gT} stroke="#1a1a1a" strokeWidth={1.5} />
         <path d={`M ${wallX - dPx} ${gT} A ${dPx} ${dPx} 0 0 1 ${wallX} ${gB}`}
           fill="none" stroke="#666" strokeWidth={1} strokeDasharray="4,3" />
@@ -408,7 +415,7 @@ function DoorSymbol({
   const wallX = px
   return (
     <g>
-      <rect x={wallX - 3} y={gT} width={6} height={dPx} fill={BG} />
+      <rect x={wallX - WALL_GAP_OFF} y={gT} width={WALL_GAP_W} height={dPx} fill={BG} />
       <line x1={wallX} y1={gT} x2={wallX + dPx} y2={gT} stroke="#1a1a1a" strokeWidth={1.5} />
       <path d={`M ${wallX + dPx} ${gT} A ${dPx} ${dPx} 0 0 0 ${wallX} ${gB}`}
         fill="none" stroke="#666" strokeWidth={1} strokeDasharray="4,3" />
@@ -430,9 +437,9 @@ function WindowSymbol({
     const wallY = py + ph
     return (
       <g>
-        <rect x={wL} y={wallY - 3} width={wPx} height={6} fill={BG} />
-        <line x1={wL} y1={wallY - 2} x2={wL + wPx} y2={wallY - 2} stroke="#1a1a1a" strokeWidth={1.5} />
-        <line x1={wL} y1={wallY + 2} x2={wL + wPx} y2={wallY + 2} stroke="#1a1a1a" strokeWidth={1.5} />
+        <rect x={wL} y={wallY - WALL_GAP_OFF} width={wPx} height={WALL_GAP_W} fill={BG} />
+        <line x1={wL} y1={wallY - 3} x2={wL + wPx} y2={wallY - 3} stroke="#1a1a1a" strokeWidth={1.5} />
+        <line x1={wL} y1={wallY + 3} x2={wL + wPx} y2={wallY + 3} stroke="#1a1a1a" strokeWidth={1.5} />
         <line x1={wL} y1={wallY}     x2={wL + wPx} y2={wallY}     stroke="#1a1a1a" strokeWidth={0.8} />
       </g>
     )
@@ -443,9 +450,9 @@ function WindowSymbol({
     const wallY = py
     return (
       <g>
-        <rect x={wL} y={wallY - 3} width={wPx} height={6} fill={BG} />
-        <line x1={wL} y1={wallY - 2} x2={wL + wPx} y2={wallY - 2} stroke="#1a1a1a" strokeWidth={1.5} />
-        <line x1={wL} y1={wallY + 2} x2={wL + wPx} y2={wallY + 2} stroke="#1a1a1a" strokeWidth={1.5} />
+        <rect x={wL} y={wallY - WALL_GAP_OFF} width={wPx} height={WALL_GAP_W} fill={BG} />
+        <line x1={wL} y1={wallY - 3} x2={wL + wPx} y2={wallY - 3} stroke="#1a1a1a" strokeWidth={1.5} />
+        <line x1={wL} y1={wallY + 3} x2={wL + wPx} y2={wallY + 3} stroke="#1a1a1a" strokeWidth={1.5} />
         <line x1={wL} y1={wallY}     x2={wL + wPx} y2={wallY}     stroke="#1a1a1a" strokeWidth={0.8} />
       </g>
     )
@@ -456,9 +463,9 @@ function WindowSymbol({
     const wallX = px + pw
     return (
       <g>
-        <rect x={wallX - 3} y={wT} width={6} height={wPx} fill={BG} />
-        <line x1={wallX - 2} y1={wT} x2={wallX - 2} y2={wT + wPx} stroke="#1a1a1a" strokeWidth={1.5} />
-        <line x1={wallX + 2} y1={wT} x2={wallX + 2} y2={wT + wPx} stroke="#1a1a1a" strokeWidth={1.5} />
+        <rect x={wallX - WALL_GAP_OFF} y={wT} width={WALL_GAP_W} height={wPx} fill={BG} />
+        <line x1={wallX - 3} y1={wT} x2={wallX - 3} y2={wT + wPx} stroke="#1a1a1a" strokeWidth={1.5} />
+        <line x1={wallX + 3} y1={wT} x2={wallX + 3} y2={wT + wPx} stroke="#1a1a1a" strokeWidth={1.5} />
         <line x1={wallX}     y1={wT} x2={wallX}     y2={wT + wPx} stroke="#1a1a1a" strokeWidth={0.8} />
       </g>
     )
@@ -469,9 +476,9 @@ function WindowSymbol({
   const wallX = px
   return (
     <g>
-      <rect x={wallX - 3} y={wT} width={6} height={wPx} fill={BG} />
-      <line x1={wallX - 2} y1={wT} x2={wallX - 2} y2={wT + wPx} stroke="#1a1a1a" strokeWidth={1.5} />
-      <line x1={wallX + 2} y1={wT} x2={wallX + 2} y2={wT + wPx} stroke="#1a1a1a" strokeWidth={1.5} />
+      <rect x={wallX - WALL_GAP_OFF} y={wT} width={WALL_GAP_W} height={wPx} fill={BG} />
+      <line x1={wallX - 3} y1={wT} x2={wallX - 3} y2={wT + wPx} stroke="#1a1a1a" strokeWidth={1.5} />
+      <line x1={wallX + 3} y1={wT} x2={wallX + 3} y2={wT + wPx} stroke="#1a1a1a" strokeWidth={1.5} />
       <line x1={wallX}     y1={wT} x2={wallX}     y2={wT + wPx} stroke="#1a1a1a" strokeWidth={0.8} />
     </g>
   )
@@ -748,9 +755,10 @@ function RoomLabel({ rp, selected }: { rp: RoomPx; selected: boolean }): React.R
       <text
         x={cx} y={startY + fontSize}
         textAnchor="middle"
-        fontFamily="system-ui, Arial, sans-serif"
+        fontFamily="'Arial Narrow', 'Helvetica Neue', Arial, sans-serif"
         fontSize={fontSize}
-        fontWeight="600"
+        fontWeight="700"
+        letterSpacing="0.09em"
         fill={selected ? '#b84000' : '#1a1a1a'}
         style={{ userSelect: 'none', pointerEvents: 'none' }}
       >
@@ -758,10 +766,11 @@ function RoomLabel({ rp, selected }: { rp: RoomPx; selected: boolean }): React.R
       </text>
       {showDims && (
         <text
-          x={cx} y={startY + fontSize + dimSize + 3}
+          x={cx} y={startY + fontSize + dimSize + 4}
           textAnchor="middle"
-          fontFamily="system-ui, Arial, sans-serif"
+          fontFamily="'Arial Narrow', Arial, sans-serif"
           fontSize={dimSize}
+          letterSpacing="0.05em"
           fill={selected ? '#b84000' : '#555'}
           style={{ userSelect: 'none', pointerEvents: 'none' }}
         >
@@ -770,10 +779,11 @@ function RoomLabel({ rp, selected }: { rp: RoomPx; selected: boolean }): React.R
       )}
       {showArea && (
         <text
-          x={cx} y={startY + fontSize + (dimSize + 3) * 2}
+          x={cx} y={startY + fontSize + (dimSize + 4) * 2}
           textAnchor="middle"
-          fontFamily="system-ui, Arial, sans-serif"
+          fontFamily="'Arial Narrow', Arial, sans-serif"
           fontSize={dimSize}
+          letterSpacing="0.04em"
           fill={selected ? '#cc5500' : '#888'}
           style={{ userSelect: 'none', pointerEvents: 'none' }}
         >
@@ -784,47 +794,120 @@ function RoomLabel({ rp, selected }: { rp: RoomPx; selected: boolean }): React.R
   )
 }
 
-// ─── Dimension lines ─────────────────────────────────────────────────────────
+// ─── Dimension lines — per-segment architectural strings ────────────────────
+
+/**
+ * Builds dimension chain segments for one axis.
+ * Returns sorted unique breakpoints across the plan width/height.
+ */
+function buildChain(rooms: Room[], axis: 'x' | 'y', totalLen: number): number[] {
+  const pts = new Set<number>([0, totalLen])
+  for (const r of rooms) {
+    if (axis === 'x') {
+      pts.add(r.x)
+      pts.add(r.x + r.width)
+    } else {
+      pts.add(r.y)
+      pts.add(r.y + r.height)
+    }
+  }
+  return Array.from(pts).sort((a, b) => a - b)
+}
+
+function fmtDim(ft: number): string {
+  const whole = Math.floor(ft)
+  const inches = Math.round((ft - whole) * 12)
+  if (inches === 0) return `${whole}'-0"`
+  if (inches === 12) return `${whole + 1}'-0"`
+  return `${whole}'-${inches}"`
+}
 
 function DimensionLines({
   plan, ox, oy, S,
 }: { plan: FloorPlan; ox: number; oy: number; S: number }): React.ReactElement {
   const W = plan.totalWidth  * S
   const H = plan.totalHeight * S
-  const TICK = 7
-  const GAP = 28
+  const TICK = 5
+  const GAP1 = 22   // first string offset from plan edge
+  const GAP2 = 40   // second string (overall) offset
+
+  const xChain = buildChain(plan.rooms, 'x', plan.totalWidth)
+  const yChain = buildChain(plan.rooms, 'y', plan.totalHeight)
+
+  const dimFont: React.SVGProps<SVGTextElement> = {
+    fontFamily: "'Arial Narrow', Arial, sans-serif",
+    fontSize: 9,
+    letterSpacing: '0.05em',
+    fill: '#444',
+    style: { userSelect: 'none' } as React.CSSProperties,
+  }
 
   return (
-    <g stroke="#555" strokeWidth={1} fill="none">
-      {/* Top dimension */}
-      <line x1={ox} y1={oy - GAP} x2={ox + W} y2={oy - GAP} />
-      <line x1={ox}     y1={oy - GAP - TICK} x2={ox}     y2={oy - GAP + TICK} />
-      <line x1={ox + W} y1={oy - GAP - TICK} x2={ox + W} y2={oy - GAP + TICK} />
-      <text
-        x={ox + W / 2} y={oy - GAP - 5}
-        textAnchor="middle"
-        fontFamily="system-ui, Arial, sans-serif"
-        fontSize={11}
-        fill="#555"
-        style={{ userSelect: 'none' }}
-      >
-        {Math.round(plan.totalWidth)}&apos;-0&quot;
+    <g fill="none">
+      {/* ── Top chain: per-segment ── */}
+      <g stroke="#666" strokeWidth={0.7}>
+        <line x1={ox} y1={oy - GAP1} x2={ox + W} y2={oy - GAP1} />
+        {xChain.map((x, i) => {
+          const px = ox + x * S
+          return <line key={`xt${i}`} x1={px} y1={oy - GAP1 - TICK} x2={px} y2={oy - GAP1 + TICK} />
+        })}
+      </g>
+      {xChain.slice(1).map((x, i) => {
+        const x0 = xChain[i]
+        const segFt = x - x0
+        if (segFt < 1) return null
+        const midPx = ox + (x0 + segFt / 2) * S
+        return (
+          <text key={`xtl${i}`} x={midPx} y={oy - GAP1 - 7} textAnchor="middle" {...dimFont}>
+            {fmtDim(segFt)}
+          </text>
+        )
+      })}
+
+      {/* ── Top overall dimension ── */}
+      <g stroke="#333" strokeWidth={1}>
+        <line x1={ox} y1={oy - GAP2} x2={ox + W} y2={oy - GAP2} />
+        <line x1={ox}     y1={oy - GAP2 - TICK - 1} x2={ox}     y2={oy - GAP2 + TICK + 1} />
+        <line x1={ox + W} y1={oy - GAP2 - TICK - 1} x2={ox + W} y2={oy - GAP2 + TICK + 1} />
+      </g>
+      <text x={ox + W / 2} y={oy - GAP2 - 7} textAnchor="middle"
+        fontFamily="'Arial Narrow', Arial, sans-serif" fontSize={11} fontWeight="700"
+        letterSpacing="0.07em" fill="#1a1a1a" style={{ userSelect: 'none' }}>
+        {fmtDim(plan.totalWidth)}
       </text>
 
-      {/* Left dimension */}
-      <line x1={ox - GAP} y1={oy} x2={ox - GAP} y2={oy + H} />
-      <line x1={ox - GAP - TICK} y1={oy}     x2={ox - GAP + TICK} y2={oy} />
-      <line x1={ox - GAP - TICK} y1={oy + H} x2={ox - GAP + TICK} y2={oy + H} />
-      <text
-        x={ox - GAP - 5} y={oy + H / 2}
-        textAnchor="middle"
-        fontFamily="system-ui, Arial, sans-serif"
-        fontSize={11}
-        fill="#555"
-        transform={`rotate(-90, ${ox - GAP - 5}, ${oy + H / 2})`}
-        style={{ userSelect: 'none' }}
-      >
-        {Math.round(plan.totalHeight)}&apos;-0&quot;
+      {/* ── Left chain: per-segment ── */}
+      <g stroke="#666" strokeWidth={0.7}>
+        <line x1={ox - GAP1} y1={oy} x2={ox - GAP1} y2={oy + H} />
+        {yChain.map((y, i) => {
+          const py = oy + y * S
+          return <line key={`yl${i}`} x1={ox - GAP1 - TICK} y1={py} x2={ox - GAP1 + TICK} y2={py} />
+        })}
+      </g>
+      {yChain.slice(1).map((y, i) => {
+        const y0 = yChain[i]
+        const segFt = y - y0
+        if (segFt < 1) return null
+        const midPy = oy + (y0 + segFt / 2) * S
+        return (
+          <text key={`yll${i}`} x={ox - GAP1 - 7} y={midPy} textAnchor="middle"
+            transform={`rotate(-90, ${ox - GAP1 - 7}, ${midPy})`} {...dimFont}>
+            {fmtDim(segFt)}
+          </text>
+        )
+      })}
+
+      {/* ── Left overall dimension ── */}
+      <g stroke="#333" strokeWidth={1}>
+        <line x1={ox - GAP2} y1={oy} x2={ox - GAP2} y2={oy + H} />
+        <line x1={ox - GAP2 - TICK - 1} y1={oy}     x2={ox - GAP2 + TICK + 1} y2={oy} />
+        <line x1={ox - GAP2 - TICK - 1} y1={oy + H} x2={ox - GAP2 + TICK + 1} y2={oy + H} />
+      </g>
+      <text x={ox - GAP2 - 8} y={oy + H / 2} textAnchor="middle"
+        transform={`rotate(-90, ${ox - GAP2 - 8}, ${oy + H / 2})`}
+        fontFamily="'Arial Narrow', Arial, sans-serif" fontSize={11} fontWeight="700"
+        letterSpacing="0.07em" fill="#1a1a1a" style={{ userSelect: 'none' }}>
+        {fmtDim(plan.totalHeight)}
       </text>
     </g>
   )
@@ -842,7 +925,7 @@ function NorthArrow({ x, y }: { x: number; y: number }): React.ReactElement {
       {/* Arrowhead pointing north */}
       <path d="M -5 -8 L 0 -14 L 5 -8 Z" fill="#1a1a1a" />
       {/* N label */}
-      <text x={0} y={8} textAnchor="middle" fontFamily="system-ui, Arial" fontSize={9} fontWeight="bold" fill="#1a1a1a">N</text>
+      <text x={0} y={8} textAnchor="middle" fontFamily="'Arial Narrow', Arial, sans-serif" fontSize={9} fontWeight="700" letterSpacing="0.05em" fill="#1a1a1a">N</text>
     </g>
   )
 }
@@ -864,10 +947,10 @@ function ScaleBar({ x, y, S }: { x: number; y: number; S: number }): React.React
       <line x1={midW} y1={0} x2={midW} y2={h + 3} stroke="#1a1a1a" strokeWidth={0.8} />
       <line x1={barW} y1={0} x2={barW} y2={h + 3} stroke="#1a1a1a" strokeWidth={0.8} />
       {/* Labels */}
-      <text x={0}    y={h + 12} textAnchor="middle" fontFamily="system-ui,Arial" fontSize={8} fill="#1a1a1a">0</text>
-      <text x={midW} y={h + 12} textAnchor="middle" fontFamily="system-ui,Arial" fontSize={8} fill="#1a1a1a">5</text>
-      <text x={barW} y={h + 12} textAnchor="middle" fontFamily="system-ui,Arial" fontSize={8} fill="#1a1a1a">10</text>
-      <text x={barW / 2} y={h + 22} textAnchor="middle" fontFamily="system-ui,Arial" fontSize={7} fill="#888">FEET</text>
+      <text x={0}    y={h + 12} textAnchor="middle" fontFamily="'Arial Narrow',Arial,sans-serif" fontSize={8} letterSpacing="0.04em" fill="#1a1a1a">0</text>
+      <text x={midW} y={h + 12} textAnchor="middle" fontFamily="'Arial Narrow',Arial,sans-serif" fontSize={8} letterSpacing="0.04em" fill="#1a1a1a">5</text>
+      <text x={barW} y={h + 12} textAnchor="middle" fontFamily="'Arial Narrow',Arial,sans-serif" fontSize={8} letterSpacing="0.04em" fill="#1a1a1a">10</text>
+      <text x={barW / 2} y={h + 22} textAnchor="middle" fontFamily="'Arial Narrow',Arial,sans-serif" fontSize={7} letterSpacing="0.08em" fill="#888">FEET</text>
     </g>
   )
 }
@@ -890,21 +973,28 @@ function TitleBlock({
       <line x1={svgW * 0.4} y1={y} x2={svgW * 0.4} y2={svgH} stroke="#1a1a1a" strokeWidth={0.5} />
       <line x1={svgW * 0.72} y1={y} x2={svgW * 0.72} y2={svgH} stroke="#1a1a1a" strokeWidth={0.5} />
       <text x={svgW * 0.2} y={y + 18} textAnchor="middle"
-        fontFamily="system-ui, Arial" fontSize={12} fontWeight="700" fill="#1a1a1a">{plan.name.toUpperCase()}</text>
+        fontFamily="'Arial Narrow', Arial, sans-serif" fontSize={12} fontWeight="700"
+        letterSpacing="0.12em" fill="#1a1a1a">{plan.name.toUpperCase()}</text>
       <text x={svgW * 0.2} y={y + 33} textAnchor="middle"
-        fontFamily="system-ui, Arial" fontSize={9} fill="#555">ARCHITECTURAL FLOOR PLAN</text>
+        fontFamily="'Arial Narrow', Arial, sans-serif" fontSize={8}
+        letterSpacing="0.1em" fill="#666">ARCHITECTURAL FLOOR PLAN</text>
       <text x={svgW * 0.56} y={y + 18} textAnchor="middle"
-        fontFamily="system-ui, Arial" fontSize={11} fontWeight="600" fill="#1a1a1a">
+        fontFamily="'Arial Narrow', Arial, sans-serif" fontSize={10} fontWeight="700"
+        letterSpacing="0.1em" fill="#1a1a1a">
         {activeFloor ? `FLOOR ${activeFloor} PLAN` : 'FLOOR PLAN'}
       </text>
       <text x={svgW * 0.56} y={y + 33} textAnchor="middle"
-        fontFamily="system-ui, Arial" fontSize={9} fill="#555">NOT FOR CONSTRUCTION</text>
+        fontFamily="'Arial Narrow', Arial, sans-serif" fontSize={8}
+        letterSpacing="0.08em" fill="#888">NOT FOR CONSTRUCTION</text>
       <text x={svgW * 0.86} y={y + 16} textAnchor="middle"
-        fontFamily="system-ui, Arial" fontSize={9} fill="#555">LIVING AREA</text>
+        fontFamily="'Arial Narrow', Arial, sans-serif" fontSize={8}
+        letterSpacing="0.08em" fill="#666">LIVING AREA</text>
       <text x={svgW * 0.86} y={y + 28} textAnchor="middle"
-        fontFamily="system-ui, Arial" fontSize={12} fontWeight="700" fill="#1a1a1a">{totalSF.toLocaleString()} SF</text>
+        fontFamily="'Arial Narrow', Arial, sans-serif" fontSize={12} fontWeight="700"
+        letterSpacing="0.05em" fill="#1a1a1a">{totalSF.toLocaleString()} SF</text>
       <text x={svgW * 0.86} y={y + 40} textAnchor="middle"
-        fontFamily="system-ui, Arial" fontSize={8} fill="#888">{Math.round(plan.totalWidth)}' × {Math.round(plan.totalHeight)}'</text>
+        fontFamily="'Arial Narrow', Arial, sans-serif" fontSize={8}
+        letterSpacing="0.04em" fill="#888">{Math.round(plan.totalWidth)}' × {Math.round(plan.totalHeight)}'</text>
     </g>
   )
 }
@@ -996,6 +1086,18 @@ export default function ArchPlan({
         if ((e.target as SVGElement).tagName === 'svg') onSelect(null)
       }}
     >
+      <defs>
+        {/* Concrete/masonry hatch — diagonal lines for exterior wall mass */}
+        <pattern id="wall-hatch" x="0" y="0" width="4" height="4"
+          patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="4" stroke="#2a2520" strokeWidth="0.9" />
+        </pattern>
+        {/* Clip path for wall thickness band — filled between outer and inner face */}
+        <pattern id="wall-hatch-light" x="0" y="0" width="5" height="5"
+          patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="5" stroke="#3a3530" strokeWidth="0.6" />
+        </pattern>
+      </defs>
       <rect x={0} y={0} width={svgW} height={svgH} fill={BG} />
 
       {/* Subtle grid */}
@@ -1022,7 +1124,27 @@ export default function ArchPlan({
         })}
       </g>
 
-      {/* ── Room fills ── */}
+      {/* ── Wall hatch bands — drawn first so room fills cover interior ── */}
+      <g style={{ pointerEvents: 'none' }}>
+        {/* Exterior boundary wall band — dense hatch */}
+        <rect x={ox - WALL_EXT / 2} y={oy - WALL_EXT / 2}
+          width={planW + WALL_EXT} height={planH + WALL_EXT}
+          fill="url(#wall-hatch)" stroke="none" />
+        {/* Interior wall bands — lighter hatch */}
+        {roomPxs.map(rp => {
+          const wt = WALL_INT
+          return (
+            <rect key={`whatch-${rp.room.id}`}
+              x={rp.px - wt / 2} y={rp.py - wt / 2}
+              width={rp.pw + wt} height={rp.ph + wt}
+              fill="url(#wall-hatch-light)"
+              stroke="none"
+            />
+          )
+        })}
+      </g>
+
+      {/* ── Room fills — covers wall hatch interior ── */}
       <g>
         {roomPxs.map(rp => (
           <rect
@@ -1053,27 +1175,40 @@ export default function ArchPlan({
         })}
       </g>
 
-      {/* ── Walls ── */}
+      {/* ── Walls — double-line with wall thickness ── */}
       <g>
-        {roomPxs.map(rp => (
-          <rect
-            key={`wall-${rp.room.id}`}
-            x={rp.px} y={rp.py}
-            width={rp.pw} height={rp.ph}
-            fill="none"
-            stroke={rp.room.id === selectedId ? '#d45000' : '#1a1a1a'}
-            strokeWidth={rp.room.id === selectedId ? WALL_W + 1 : WALL_W}
-            style={{ pointerEvents: 'none' }}
-          />
-        ))}
+        {roomPxs.map(rp => {
+          const sel = rp.room.id === selectedId
+          const col = sel ? '#c84800' : '#1a1a1a'
+          return (
+            <g key={`wall-${rp.room.id}`} style={{ pointerEvents: 'none' }}>
+              {/* Outer wall line — carries the wall mass */}
+              <rect
+                x={rp.px} y={rp.py}
+                width={rp.pw} height={rp.ph}
+                fill="none"
+                stroke={col}
+                strokeWidth={sel ? WALL_INT + 1 : WALL_INT}
+              />
+              {/* Inner face line — interior finish surface */}
+              <rect
+                x={rp.px + WALL_INNER_INSET} y={rp.py + WALL_INNER_INSET}
+                width={rp.pw - WALL_INNER_INSET * 2} height={rp.ph - WALL_INNER_INSET * 2}
+                fill="none"
+                stroke={sel ? '#c84800' : '#2a2a2a'}
+                strokeWidth={WALL_INNER}
+              />
+            </g>
+          )
+        })}
       </g>
 
-      {/* ── Outer plan boundary ── */}
+      {/* ── Outer plan boundary — thick exterior wall ── */}
       <rect
         x={ox} y={oy}
         width={planW} height={planH}
         fill="none" stroke="#1a1a1a"
-        strokeWidth={WALL_W + 2}
+        strokeWidth={WALL_EXT}
         style={{ pointerEvents: 'none' }}
       />
 

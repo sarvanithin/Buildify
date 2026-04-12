@@ -51,6 +51,29 @@ export async function sendChatMessage(
   return data
 }
 
+export interface RenderResult {
+  image_url: string
+  cached: boolean
+  prompt: string
+}
+
+export async function renderRoom(
+  roomType: string,
+  style: string,
+  widthFt: number,
+  depthFt: number,
+  ceilingHeight: number,
+): Promise<RenderResult> {
+  const { data } = await api.post('/render/room', {
+    room_type: roomType,
+    style,
+    width_ft: widthFt,
+    depth_ft: depthFt,
+    ceiling_height: ceilingHeight,
+  })
+  return data
+}
+
 // ── types returned by API ────────────────────────────────────────────────────
 
 export interface CostRoomRow {

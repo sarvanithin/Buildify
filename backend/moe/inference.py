@@ -96,8 +96,7 @@ def load_model(config: MOEConfig = None) -> BuildifyMOE:
 def _moe_adjusted_size(room_type: str, sqft: int, expert_weights: dict) -> tuple:
     """
     Use MOE expert weights to intelligently size rooms.
-    Interpolates between minimum and STANDARD sizes (not premium).
-    Premium sizes only for homes > 3000 sqft.
+    Calibrated so 1800 sqft → standard sizes, 2400 sqft → standard-to-premium.
     """
     specs = IRC_ROOM_SPECS.get(room_type)
     if not specs:
@@ -105,24 +104,23 @@ def _moe_adjusted_size(room_type: str, sqft: int, expert_weights: dict) -> tuple
 
     min_w, min_h, std_w, std_h, prem_w, prem_h = specs
 
-    # Size factor from sqft (0.0 = compact, 1.0 = spacious)
-    sf = min(1.0, max(0.0, (sqft - 1200) / 2800))
+    # sf: 0.0 at 1000 sqft (tiny), 1.0 at 4000 sqft (large luxury).
+    # Power curve (^0.6) compresses the lower end so that mid-range homes
+    # (1800-2400 sqft) land near standard sizes rather than near minimums.
+    # 1200→0.18  1500→0.36  1800→0.49  2400→0.65  3000→0.78  4000→1.0
+    sf = min(1.0, max(0.0, (sqft - 1000) / 3000)) ** 0.6
 
-    # Expert influence
+    # Expert influence (subtle nudge on top of sqft-based sizing)
     sizing_w = expert_weights.get("Room Sizing", 0.125)
     cost_w = expert_weights.get("Cost Optimization", 0.125)
 
-    # For homes ≤ 3000 sqft: interpolate between min and standard
-    # For homes > 3000 sqft: interpolate between standard and premium
-    if sqft <= 3000:
-        t = sf * 0.8 + sizing_w * 1.5 - cost_w * 1.5
-        t = min(1.0, max(0.0, t))
+    # Blend: sf 0→0.5 = min→standard, sf 0.5→1.0 = standard→premium
+    if sf <= 0.5:
+        t = min(1.0, max(0.0, sf * 2.0 + sizing_w * 0.4 - cost_w * 0.4))
         w = min_w + (std_w - min_w) * t
         h = min_h + (std_h - min_h) * t
     else:
-        t = (sqft - 3000) / 2000  # 0-1 range for 3000-5000 sqft
-        t = min(1.0, max(0.0, t)) * 0.7 + sizing_w
-        t = min(1.0, t)
+        t = min(1.0, max(0.0, (sf - 0.5) * 2.0 + sizing_w * 0.3 - cost_w * 0.3))
         w = std_w + (prem_w - std_w) * t
         h = std_h + (prem_h - std_h) * t
 
@@ -233,6 +231,14 @@ def _place_rooms_architectural(rooms: List[dict], total_w: float, total_h: float
 
             # Stretch last non-small room to fill remaining width.
             # Never stretch small-only rows (orphan bathrooms etc.).
+            # Cap stretch for rooms that shouldn't grow unboundedly (bedrooms,
+            # dining, offices) — prevents a bedroom from becoming 31' wide just
+            # because it's the only large room in a short row.
+            _STRETCH_CAP = {
+                "bedroom": 16, "master_bedroom": 22, "home_office": 16,
+                "dining_room": 18, "family_room": 22, "walk_in_closet": 12,
+                "garage": 30, "kitchen": 22, "living_room": 28,
+            }
             remaining = total_w - sum(row_widths)
             if remaining > 0:
                 stretch_idx = None
@@ -241,7 +247,10 @@ def _place_rooms_architectural(rooms: List[dict], total_w: float, total_h: float
                         stretch_idx = k
                         break
                 if stretch_idx is not None:
-                    row_widths[stretch_idx] += remaining
+                    rtype = row[stretch_idx]["type"]
+                    cap = _STRETCH_CAP.get(rtype, 9999)
+                    allowed = max(0, cap - row_widths[stretch_idx])
+                    row_widths[stretch_idx] += min(remaining, allowed)
 
             x_pos = 0.0
             for i, r in enumerate(row):
@@ -264,13 +273,26 @@ def _place_rooms_architectural(rooms: List[dict], total_w: float, total_h: float
     entry = zone_rooms[0]
     has_garage = any(r["type"] == "garage" for r in entry)
     if not has_garage and entry:
-        # No garage: prepend foyer to social zone, skip standalone entry band
-        zone_rooms[1] = entry + zone_rooms[1]
+        # No garage: foyer goes to social front (entry → living area flow).
+        # Service rooms (laundry, mudroom, utility) go to the kitchen zone — they
+        # belong adjacent to kitchen, not at the front of the social band.
+        foyer_rooms   = [r for r in entry if r["type"] == "foyer"]
+        service_rooms = [r for r in entry if r["type"] != "foyer"]
+        zone_rooms[1] = foyer_rooms + zone_rooms[1]      # foyer leads social band
+        zone_rooms[2] = zone_rooms[2] + service_rooms    # laundry/mudroom trail kitchen band
         entry = []
     else:
         entry.sort(key=lambda r: {
             "garage": 0, "mudroom": 1, "laundry_room": 2, "utility_room": 3, "foyer": 4
         }.get(r["type"], 5))
+        # Stretch ALL entry band rooms to the band's max height (set by garage depth).
+        # This eliminates the dead space void that appears when mudroom/laundry/foyer
+        # are 8ft tall in a 20ft-deep entry band. All rooms flush to the same bottom
+        # edge guarantees shared walls with the social band below.
+        if entry:
+            band_max_h = max(r["height"] for r in entry)
+            for r in entry:
+                r["height"] = band_max_h
     _pack_rows(entry)
 
     # ── ZONES 1+2: SOCIAL BAND (kitchen + living merged) ─────────────────
@@ -278,10 +300,14 @@ def _place_rooms_architectural(rooms: List[dict], total_w: float, total_h: float
     # ensures kitchen is adjacent to living areas (not isolated two bands away).
     # Order: foyer (if no garage), living_room, dining/family, kitchen, pantry.
     social_rooms = zone_rooms[1] + zone_rooms[2]
+    # Kitchen + service first, then dining/family, then living room LAST.
+    # Living room is the largest flexible social space — placing it last lets it
+    # absorb any remaining row width without over-stretching kitchen or dining.
+    # Architectural flow: entry → kitchen/dining → living (open plan read from inside).
     social_order = {
-        "foyer": 0, "living_room": 1, "home_office": 2,
-        "dining_room": 3, "family_room": 4,
-        "kitchen": 5, "pantry": 6,
+        "foyer": 0, "kitchen": 1, "pantry": 2,
+        "home_office": 3, "dining_room": 4, "family_room": 5,
+        "living_room": 6,
     }
     social_rooms.sort(key=lambda r: social_order.get(r["type"], 6))
     _pack_rows(social_rooms)
@@ -294,12 +320,16 @@ def _place_rooms_architectural(rooms: List[dict], total_w: float, total_h: float
         hallway_h = 4  # IRC R311.7: 36in min; 4ft is standard corridor depth (not sqft-scaled)
         hallway["width"] = int(total_w)   # spans full footprint width
         _pack_rows([hallway], fixed_height=hallway_h)
-    _pack_rows(other_hall)  # half_bath, etc., in next sub-row
+    # NOTE: other_hall (half_bath etc.) is intentionally merged into the private band
+    # below so that half_baths are adjacent to bedrooms and share a connectable wall.
 
     # ── ZONE 4: PRIVATE BAND (bedrooms) ───────────────────────────────────
     # Master suite cluster first: master_bedroom → ensuite_bathroom → walk_in_closet
-    # Then secondary bedrooms, shared bathrooms, closets
-    private = zone_rooms[4]
+    # Then secondary bedrooms, shared bathrooms, closets.
+    # Half-baths (zone 3 overflow) are merged here so they sit adjacent to bedrooms
+    # and share a wall — creating a door. Placing them between hallway and private
+    # band creates a dead gap and leaves bedrooms disconnected from the hallway.
+    private = zone_rooms[4] + [r for r in zone_rooms[3] if r["type"] != "hallway"]
     suite_order = {
         "master_bedroom": 0, "ensuite_bathroom": 1, "walk_in_closet": 2,
         "bedroom": 3, "bathroom": 4, "closet": 5,
@@ -526,11 +556,22 @@ def _snap_and_fill(rooms: List[dict], total_w: float, total_h: float) -> List[di
             _SNAP_SMALL = {"closet","walk_in_closet","half_bath","pantry","mudroom",
                            "laundry_room","utility_room","bathroom","ensuite_bathroom","foyer",
                            "patio","deck","rear_patio","outdoor_living","front_porch"}
+            # Cap: prevent these room types from growing beyond a realistic max width
+            # even if they end up alone in a row after rounding/wrapping.
+            _SNAP_WIDTH_CAP = {
+                "master_bedroom": 22, "bedroom": 16,
+                "home_office": 16, "dining_room": 18, "family_room": 22,
+                "garage": 30, "kitchen": 22, "living_room": 28,
+            }
             if diff != 0:
                 last_min = IRC_ROOM_SPECS.get(last["type"], (4, 4))[0]
                 # For stretching (diff > 0), skip if last room is a small type
                 if diff > 0 and last["type"] in _SNAP_SMALL:
                     diff = 0  # don't inflate small rooms in snap pass
+                # Apply width cap for room types that shouldn't grow unboundedly
+                if diff > 0 and last["type"] in _SNAP_WIDTH_CAP:
+                    max_w = _SNAP_WIDTH_CAP[last["type"]]
+                    diff = max(0, min(diff, max_w - last["width"]))
                 new_w = last["width"] + diff
                 if new_w >= last_min:
                     last["width"] = new_w
@@ -558,9 +599,17 @@ def _snap_and_fill(rooms: List[dict], total_w: float, total_h: float) -> List[di
 
 _OUTDOOR_TYPES = {"patio", "deck", "rear_patio", "outdoor_living", "front_porch"}
 
+# Private rooms that must not be extended vertically — they've been carefully
+# sized and stretching them to fill the footprint creates unrealistic 24ft-deep bedrooms.
+_NO_EXTEND_TYPES = {
+    "bedroom", "master_bedroom", "ensuite_bathroom", "bathroom",
+    "half_bath", "walk_in_closet", "closet",
+}
+
 def _fill_vertical_gaps(rooms: List[dict], total_h: float) -> List[dict]:
     """Extend rooms that have no room below them to fill the plan's total height.
-    Outdoor rooms (patio/deck) are not extended, and conditioned rooms are not
+    Outdoor rooms (patio/deck) are not extended, private rooms (bedrooms/baths)
+    are not extended beyond their placed size, and conditioned rooms are not
     extended into the outdoor band even when the outdoor room is narrower."""
     th = int(round(total_h))
     # Find the y-start of the outdoor band (topmost outdoor room y position)
@@ -571,6 +620,8 @@ def _fill_vertical_gaps(rooms: List[dict], total_h: float) -> List[dict]:
     for r in rooms:
         if r["type"] in _OUTDOOR_TYPES:
             continue  # never extend outdoor rooms
+        if r["type"] in _NO_EXTEND_TYPES:
+            continue  # private rooms keep their placed size exactly
         bottom = r["y"] + r["height"]
         if bottom >= th:
             continue
@@ -756,7 +807,7 @@ def predict_floor_plan(constraints: dict, num_variants: int = 3,
         _UNCOND_HEIGHT_CAPS = {
             "patio": 10, "deck": 10, "rear_patio": 10,
             "outdoor_living": 10, "front_porch": 6,
-            "garage": 22,
+            "garage": 20,
         }
         for r in sized_rooms:
             cap = _UNCOND_HEIGHT_CAPS.get(r["type"])
@@ -783,12 +834,12 @@ def predict_floor_plan(constraints: dict, num_variants: int = 3,
             # Tight caps force rooms to be WIDE rather than deep, creating a
             # realistic shallow house footprint (vs. a narrow tower).
             _HEIGHT_CAPS = {
-                "living_room": 14, "family_room": 14, "dining_room": 12,
-                "kitchen": 12, "home_office": 12,
-                "master_bedroom": 14, "bedroom": 12,
-                "ensuite_bathroom": 8,  "bathroom": 8,  "half_bath": 6,
-                "foyer": 8,  "mudroom": 8,  "laundry_room": 8,  "utility_room": 8,
-                "walk_in_closet": 8,  "closet": 6,  "pantry": 6,
+                "living_room": 16, "family_room": 16, "dining_room": 14,
+                "kitchen": 14, "home_office": 13,
+                "master_bedroom": 16, "bedroom": 14,
+                "ensuite_bathroom": 10,  "bathroom": 10,  "half_bath": 7,
+                "foyer": 10,  "mudroom": 10,  "laundry_room": 10,  "utility_room": 10,
+                "walk_in_closet": 10,  "closet": 8,  "pantry": 8,
                 "garage": 22, "patio": 10, "deck": 10, "rear_patio": 10,
             }
             for r in conditioned:
@@ -806,6 +857,115 @@ def predict_floor_plan(constraints: dict, num_variants: int = 3,
                     specs = IRC_ROOM_SPECS.get(r["type"], (4, 4))
                     r["width"] = max(specs[0], round(r["width"] * sw / 2) * 2)
 
+            # Phase 4 — hard width caps so no single room grows absurdly wide from scaling.
+            # Without this, a primary suite can reach 28ft+ in large or high-sqft homes.
+            _WIDTH_CAPS = {
+                "master_bedroom": 20, "bedroom": 16,
+                "home_office": 16, "dining_room": 18, "family_room": 20,
+                "ensuite_bathroom": 12, "bathroom": 10, "half_bath": 6,
+                "walk_in_closet": 10, "closet": 8, "pantry": 8,
+                "foyer": 12, "mudroom": 12, "laundry_room": 10,
+            }
+            for r in conditioned:
+                cap = _WIDTH_CAPS.get(r["type"])
+                if cap and r["width"] > cap:
+                    r["width"] = cap
+
+            # Phase 5 — architectural bonuses and aspect ratio enforcement.
+
+            # 5a: Open plan great room bonus — when open plan, the living room
+            # serves as the main social anchor and should be noticeably larger.
+            if open_plan:
+                for r in conditioned:
+                    if r["type"] == "living_room":
+                        specs = IRC_ROOM_SPECS.get("living_room", (4, 4))
+                        r["width"] = min(
+                            _WIDTH_CAPS.get("living_room", 9999),
+                            max(specs[0], round(r["width"] * 1.25 / 2) * 2)
+                        )
+                        r["height"] = max(specs[1], round(r["height"] * 1.15 / 2) * 2)
+
+            # 5b: Primary suite prominence — at 2000+ sqft the suite should feel
+            # like a destination, not just a code-minimum bedroom.
+            # Scales: 2000→+0%, 2400→+15%, 3000→+33%, 4000→+67%
+            if primary_suite and sqft >= 2000:
+                suite_bonus = min(1.70, 1.0 + (sqft - 2000) / 3000)
+                for r in conditioned:
+                    if r["type"] in ("master_bedroom", "ensuite_bathroom", "walk_in_closet"):
+                        specs = IRC_ROOM_SPECS.get(r["type"], (4, 4))
+                        cap_w = _WIDTH_CAPS.get(r["type"], 9999)
+                        cap_h = _HEIGHT_CAPS.get(r["type"], 9999)
+                        r["width"]  = min(cap_w, max(specs[0], round(r["width"]  * suite_bonus / 2) * 2))
+                        r["height"] = min(cap_h, max(specs[1], round(r["height"] * min(suite_bonus, 1.30) / 2) * 2))
+
+            # 5c: Aspect ratio enforcement — redistribute width/height while
+            # preserving room area. Architectural rooms should have good proportions:
+            # living/dining are wider than deep; bedrooms are roughly square.
+            _ASPECT_RANGES: dict = {
+                "living_room":      (1.15, 1.95),
+                "family_room":      (1.15, 1.95),
+                "kitchen":          (0.95, 1.70),
+                "dining_room":      (0.95, 1.55),
+                "master_bedroom":   (0.95, 1.60),
+                "bedroom":          (0.90, 1.55),
+                "ensuite_bathroom": (0.85, 1.50),
+                "bathroom":         (0.75, 1.45),
+                "home_office":      (0.95, 1.55),
+                "foyer":            (0.75, 1.35),
+                "walk_in_closet":   (0.75, 1.30),
+                "mudroom":          (0.70, 1.35),
+                "laundry_room":     (0.70, 1.40),
+                "pantry":           (0.65, 1.25),
+            }
+            for r in conditioned:
+                ar = _ASPECT_RANGES.get(r["type"])
+                if not ar or r["height"] == 0:
+                    continue
+                ratio = r["width"] / r["height"]
+                area = r["width"] * r["height"]
+                specs = IRC_ROOM_SPECS.get(r["type"], (4, 4))
+                if ratio < ar[0]:
+                    # Too tall/narrow — ceil-round new_w to guarantee ratio hits minimum.
+                    # round() can produce the same too-narrow width; ceil ensures we go wider.
+                    new_w = max(specs[0], math.ceil(math.sqrt(area * ar[0]) / 2) * 2)
+                    new_w = min(_WIDTH_CAPS.get(r["type"], 9999), new_w)
+                    new_h = max(specs[1], round(area / max(new_w, 1) / 2) * 2)
+                    cap_h = _HEIGHT_CAPS.get(r["type"], 9999)
+                    r["width"], r["height"] = new_w, min(cap_h, new_h)
+                elif ratio > ar[1]:
+                    # Too wide/flat — ceil-round new_h to guarantee ratio comes down.
+                    new_h = max(specs[1], math.ceil(math.sqrt(area / ar[1]) / 2) * 2)
+                    cap_h = _HEIGHT_CAPS.get(r["type"], 9999)
+                    new_h = min(cap_h, new_h)
+                    new_w = max(specs[0], round(area / max(new_h, 1) / 2) * 2)
+                    r["width"], r["height"] = min(_WIDTH_CAPS.get(r["type"], 9999), new_w), new_h
+
+            # Phase 6 — sqft-tier minimum sizes.
+            # Guarantees key rooms feel appropriately generous at each house size tier.
+            # These are FLOORS, not caps — rooms can be larger from prior phases.
+            # Tiers: (min_sqft_threshold, min_w, min_h)
+            _TIER_MINS: dict = {
+                "kitchen":      [(1000, 10, 10), (1600, 12, 12), (2000, 14, 12), (2600, 16, 14), (3200, 18, 14)],
+                "living_room":  [(1000, 12, 12), (1600, 16, 12), (2000, 18, 14), (2600, 20, 14), (3200, 22, 16)],
+                "dining_room":  [(1000, 10, 10), (1600, 12, 12), (2000, 14, 12), (2600, 14, 12)],
+                "family_room":  [(1000, 12, 12), (1600, 14, 12), (2000, 16, 14), (2600, 18, 14)],
+                "master_bedroom": [(1000, 12, 12), (1800, 14, 14), (2400, 16, 14), (3000, 16, 16)],
+                "ensuite_bathroom": [(1000, 7, 9), (2000, 8, 10), (2800, 10, 10)],
+                "home_office":  [(1000, 10, 10), (2000, 12, 10), (2800, 12, 12)],
+            }
+            for r in conditioned:
+                tiers = _TIER_MINS.get(r["type"])
+                if not tiers:
+                    continue
+                specs = IRC_ROOM_SPECS.get(r["type"], (4, 4))
+                for tier_sqft, tier_w, tier_h in reversed(tiers):
+                    if sqft >= tier_sqft:
+                        cap_w = _WIDTH_CAPS.get(r["type"], 9999)
+                        cap_h = _HEIGHT_CAPS.get(r["type"], 9999)
+                        r["width"]  = min(cap_w, max(r["width"],  tier_w))
+                        r["height"] = min(cap_h, max(r["height"], tier_h))
+                        break
+
         # ── Footprint width: target realistic US house proportions ─────────
         # Real single-story houses: 50-70ft wide, 30-55ft deep.
         # Base target width on sqft: ~sqrt(sqft * 1.8) gives sensible proportions.
@@ -814,12 +974,11 @@ def predict_floor_plan(constraints: dict, num_variants: int = 3,
             r["width"] for r in sized_rooms
             if ZONE_MAP.get(r["type"], 1) == 0
         )
-        # Target: wide enough that rooms pack into SINGLE rows per zone.
-        # Social zone has ~4 rooms (14-16ft each) = ~60-66ft needed.
-        # Private zone has ~5 rooms averaging ~12ft = ~60ft needed.
-        # Target 68-76ft to guarantee single-row packing in most cases.
-        sqft_based_w = math.sqrt(sqft * 2.5)  # 1800→67ft, 2400→77ft, 3000→86ft
-        total_w = max(64, min(80, round(max(entry_rooms_w, sqft_based_w) / 2) * 2))
+        # Target: realistic single-story US house width.
+        # Scale factor 2.05 ensures the social band's rooms fit in one row without shrinkage.
+        # 1600→57ft, 1800→61ft, 2400→70ft, 3000→78ft.
+        sqft_based_w = math.sqrt(sqft * 2.05)  # 1800→61ft, 2400→70ft, 3000→78ft
+        total_w = max(54, min(82, round(max(entry_rooms_w, sqft_based_w) / 2) * 2))
         # Height estimate only used for initial clamping — actual_h recomputed after placement
         total_h = max(28, min(60, round(sqft / max(total_w, 1) * 0.9)))
 
@@ -845,6 +1004,7 @@ def predict_floor_plan(constraints: dict, num_variants: int = 3,
 
         # Stage 5: Grid snap + gap fill (use actual height)
         placed = _snap_and_fill(placed, total_w, actual_h)
+        placed = _fix_isolated_service_rooms(placed, total_w)
         placed = _fill_vertical_gaps(placed, actual_h)
 
         # Stage 5b: Sqft correction — if conditioned area significantly exceeds target,
@@ -880,11 +1040,39 @@ def predict_floor_plan(constraints: dict, num_variants: int = 3,
             "totalWidth": total_w,
             "totalHeight": actual_h,
             "ceilingHeight": ceiling_ft,
+            "style": style,
             "rooms": placed,
             "doors": doors,
             "generator": "moe+housegan" if used_housegan else "moe",
             "variant": v,
         }
+
+        # Stage 7: Design validation — retry up to 2 more times if errors found
+        validation_issues = _validate_design(plan)
+        has_errors = any(i["severity"] == "error" for i in validation_issues)
+        if has_errors:
+            for retry in range(1, 3):
+                retry_placed = _place_rooms_architectural(
+                    sized_rooms, total_w, total_h, style,
+                    variant_seed=v * 100 + retry,
+                )
+                if retry_placed:
+                    actual_h_r = max(total_h, max(r["y"] + r["height"] for r in retry_placed))
+                    actual_h_r = round(actual_h_r / 2) * 2
+                retry_placed = _validate_irc(retry_placed, total_w, actual_h_r)
+                retry_placed = _snap_and_fill(retry_placed, total_w, actual_h_r)
+                retry_placed = _fill_vertical_gaps(retry_placed, actual_h_r)
+                retry_doors = _add_doors(retry_placed)
+                retry_plan = {**plan, "rooms": retry_placed, "doors": retry_doors,
+                               "totalHeight": actual_h_r}
+                retry_issues = _validate_design(retry_plan)
+                retry_errors = any(i["severity"] == "error" for i in retry_issues)
+                if not retry_errors or retry == 2:
+                    plan = retry_plan
+                    validation_issues = retry_issues
+                    break
+
+        plan["validationIssues"] = validation_issues
         plans.append(plan)
 
     # Confidence scoring
@@ -912,43 +1100,49 @@ def _add_doors(rooms: List[dict]) -> List[dict]:
             pair = tuple(sorted((r1["id"], r2["id"])))
             if pair in processed_pairs: continue
 
+            # Wall adjacency tolerance: 2ft handles rounding gaps from snap/fill passes.
+            # Service rooms (laundry, mudroom) use a wider tolerance because they can
+            # end up in a wrapped row adjacent to a taller social row, creating a 4ft gap.
+            _SERVICE = {"laundry_room", "mudroom"}
+            _TOL = 6.0 if (_SERVICE & {r1["type"], r2["type"]}) else 2.0
+
             # Check for shared vertical wall (X matches)
             # R1 is left of R2 OR R2 is left of R1
             shared_v = None
-            if abs((r1["x"] + r1["width"]) - r2["x"]) < 0.5:
+            if abs((r1["x"] + r1["width"]) - r2["x"]) <= _TOL:
                 # R1 | R2
-                shared_x = r2["x"]
+                shared_x = (r1["x"] + r1["width"] + r2["x"]) / 2
                 y_start = max(r1["y"], r2["y"])
                 y_end = min(r1["y"] + r1["height"], r2["y"] + r2["height"])
-                if y_end - y_start >= 3: # Need at least 3ft shared wall
+                if y_end - y_start >= 2: # Need at least 2ft shared wall
                     shared_v = (shared_x, y_start + (y_end - y_start)/2, True)
-            elif abs((r2["x"] + r2["width"]) - r1["x"]) < 0.5:
+            elif abs((r2["x"] + r2["width"]) - r1["x"]) <= _TOL:
                 # R2 | R1
-                shared_x = r1["x"]
+                shared_x = (r2["x"] + r2["width"] + r1["x"]) / 2
                 y_start = max(r1["y"], r2["y"])
                 y_end = min(r1["y"] + r1["height"], r2["y"] + r2["height"])
-                if y_end - y_start >= 3:
+                if y_end - y_start >= 2:
                     shared_v = (shared_x, y_start + (y_end - y_start)/2, True)
 
             # Check for shared horizontal wall (Y matches)
             shared_h = None
-            if abs((r1["y"] + r1["height"]) - r2["y"]) < 0.5:
+            if abs((r1["y"] + r1["height"]) - r2["y"]) <= _TOL:
                 # R1
                 # ---
                 # R2
-                shared_y = r2["y"]
+                shared_y = (r1["y"] + r1["height"] + r2["y"]) / 2
                 x_start = max(r1["x"], r2["x"])
                 x_end = min(r1["x"] + r1["width"], r2["x"] + r2["width"])
-                if x_end - x_start >= 3:
+                if x_end - x_start >= 2:
                     shared_h = (x_start + (x_end - x_start)/2, shared_y, False)
-            elif abs((r2["y"] + r2["height"]) - r1["y"]) < 0.5:
+            elif abs((r2["y"] + r2["height"]) - r1["y"]) <= _TOL:
                 # R2
                 # ---
                 # R1
-                shared_y = r1["y"]
+                shared_y = (r2["y"] + r2["height"] + r1["y"]) / 2
                 x_start = max(r1["x"], r2["x"])
                 x_end = min(r1["x"] + r1["width"], r2["x"] + r2["width"])
-                if x_end - x_start >= 3:
+                if x_end - x_start >= 2:
                     shared_h = (x_start + (x_end - x_start)/2, shared_y, False)
 
             # Rules for placing a door:
@@ -959,11 +1153,30 @@ def _add_doors(rooms: List[dict]) -> List[dict]:
             is_door = False
             t1, t2 = r1["type"], r2["type"]
             
+            _SOCIAL = {"living_room", "dining_room", "family_room", "kitchen"}
+            _BEDROOM_TYPES = {"bedroom", "master_bedroom"}
+            _BATH_TYPES = {"bathroom", "ensuite_bathroom", "half_bath"}
+
             if "hallway" in (t1, t2): is_door = True
-            elif ("foyer" in (t1, t2)) and any(t in ("living_room", "dining_room", "family_room", "kitchen") for t in (t1, t2)): is_door = True
+            elif ("foyer" in (t1, t2)) and any(t in _SOCIAL for t in (t1, t2)): is_door = True
+            elif ("foyer" in (t1, t2)) and "hallway" not in (t1, t2): is_door = True  # foyer always connects
             elif (t1 == "master_bedroom" and t2 in ("ensuite_bathroom", "walk_in_closet")) or (t2 == "master_bedroom" and t1 in ("ensuite_bathroom", "walk_in_closet")): is_door = True
-            elif all(t in ("living_room", "dining_room", "family_room", "kitchen") for t in (t1, t2)): is_door = True # Wide opening
+            elif all(t in _SOCIAL for t in (t1, t2)): is_door = True  # Wide opening
             elif "mudroom" in (t1, t2) and any(t in ("garage", "kitchen", "foyer") for t in (t1, t2)): is_door = True
+            elif any(t in _BEDROOM_TYPES for t in (t1, t2)) and any(t in _BATH_TYPES for t in (t1, t2)): is_door = True  # bed→bath
+            elif any(t in _BEDROOM_TYPES for t in (t1, t2)) and any(t in _SOCIAL for t in (t1, t2)): is_door = True  # open plan bed→living
+            elif "mudroom" in (t1, t2): is_door = True  # mudroom always connects to adjacent rooms
+            elif ("laundry_room" in (t1, t2)) and any(t in ("kitchen", "mudroom", "hallway", "foyer", "garage") for t in (t1, t2)): is_door = True
+            elif ("pantry" in (t1, t2)) and "kitchen" in (t1, t2): is_door = True  # pantry from kitchen
+            elif ("home_office" in (t1, t2)) and any(t in _SOCIAL | {"hallway", "foyer"} for t in (t1, t2)): is_door = True
+            elif ("walk_in_closet" in (t1, t2)) and any(t in _BEDROOM_TYPES | _BATH_TYPES for t in (t1, t2)): is_door = True  # suite cluster
+            elif t1 == "ensuite_bathroom" and t2 == "walk_in_closet": is_door = True  # within suite cluster
+            elif t2 == "ensuite_bathroom" and t1 == "walk_in_closet": is_door = True
+            # Private zone circulation: adjacent private rooms connect via shared walls
+            # (handles multi-row private bands where hallway doesn't directly border all rooms)
+            _PRIVATE_ALL = _BEDROOM_TYPES | _BATH_TYPES | {"walk_in_closet", "closet", "half_bath"}
+            if not is_door and all(t in _PRIVATE_ALL for t in (t1, t2)):
+                is_door = True
 
             if is_door:
                 if shared_v:
@@ -974,6 +1187,194 @@ def _add_doors(rooms: List[dict]) -> List[dict]:
                     processed_pairs.add(pair)
 
     return doors
+
+
+def _fix_isolated_service_rooms(placed: List[dict], total_w: float) -> List[dict]:
+    """
+    Pantry and laundry can wrap to isolated rows when the social band is tight.
+    If either ends up in its own row with no x-overlap with the kitchen,
+    reposition it directly below the kitchen's right end so they share a wall
+    and a door can be detected. This keeps the staircase/hallway reachable.
+    Called AFTER snap_and_fill (which resets x to 0 for isolated rows).
+    """
+    kitchen = next((r for r in placed if r["type"] == "kitchen"), None)
+    if not kitchen:
+        return placed
+
+    k_x1, k_x2 = kitchen["x"], kitchen["x"] + kitchen["width"]
+
+    for rtype in ("pantry", "laundry_room"):
+        room = next((r for r in placed if r["type"] == rtype), None)
+        if not room:
+            continue
+        if room["y"] <= kitchen["y"]:
+            continue  # same row or above — no fix needed
+
+        r_x1, r_x2 = room["x"], room["x"] + room["width"]
+        x_overlap = min(k_x2, r_x2) - max(k_x1, r_x1)
+        if x_overlap >= 2:
+            continue  # already shares wall with kitchen
+
+        # Snap room to right edge of kitchen, clamped to footprint
+        new_x = min(k_x2 - room["width"], int(total_w) - room["width"])
+        new_x = max(0, round(new_x / 2) * 2)
+        room["x"] = int(new_x)
+        # Also snap y to the kitchen's actual bottom edge (not the row y_cursor).
+        # Living room height > kitchen height creates a gap; closing it ensures a shared wall.
+        if room["y"] > kitchen["y"] + kitchen["height"]:
+            room["y"] = kitchen["y"] + kitchen["height"]
+
+    return placed
+
+
+def _validate_design(plan: dict) -> List[dict]:
+    """
+    Architectural sanity checks on a generated plan.
+
+    Checks:
+      1. Entry point exists (foyer/mudroom/garage on floor 1 at front of house)
+      2. Every habitable room has at least one door connection
+      3. All floor-1 rooms are reachable from entry via doors (BFS connectivity)
+      4. All floor-2 rooms are reachable from upper hall (if two-story)
+      5. No rooms extend beyond the declared footprint
+
+    Returns: list of issue dicts — [] = clean plan.
+      Each issue: {"type": str, "severity": "error"|"warning", "message": str}
+    """
+    issues = []
+    rooms = plan["rooms"]
+    doors = plan.get("doors", [])
+    total_w = plan["totalWidth"]
+    total_h = plan["totalHeight"]
+    floor2_h = plan.get("floor2Height", total_h)
+    is_two_story = plan.get("stories", 1) == 2
+
+    f1_rooms = [r for r in rooms if r.get("floor", 1) == 1]
+    f2_rooms = [r for r in rooms if r.get("floor", 1) == 2]
+
+    # ── Check 1: Entry point exists and is at the front (y ≤ 4) ─────────────
+    _ENTRY_TYPES = {"foyer", "mudroom", "garage"}
+    entry_candidates = [r for r in f1_rooms if r["type"] in _ENTRY_TYPES]
+    front_entry = [r for r in entry_candidates if r["y"] <= 6]
+    if not entry_candidates:
+        issues.append({
+            "type": "no_entry",
+            "severity": "error",
+            "message": "No entry point (foyer/garage) on floor 1 — visitors have no way in.",
+        })
+    elif not front_entry:
+        issues.append({
+            "type": "entry_not_front",
+            "severity": "warning",
+            "message": "Entry (foyer/garage) is not at the front of the house.",
+        })
+
+    # ── Check 2: Every habitable room has ≥1 door connection ─────────────────
+    rooms_with_doors: set = set()
+    for d in doors:
+        rooms_with_doors.add(d.get("roomA"))
+        rooms_with_doors.add(d.get("roomB"))
+
+    isolated = []
+    for r in rooms:
+        if r["type"] in _OUTDOOR_TYPES:
+            continue
+        # Hallways are circulation — missing a door here is a layout bug
+        if r["id"] not in rooms_with_doors:
+            isolated.append(r["name"])
+    if isolated:
+        issues.append({
+            "type": "isolated_rooms",
+            "severity": "error",
+            "message": f"Rooms with no door: {', '.join(isolated[:5])}{'…' if len(isolated) > 5 else ''}",
+        })
+
+    # ── Check 3: Floor-1 BFS connectivity from foyer ─────────────────────────
+    # Build adjacency map (only floor-1 doors; two-story floor-2 checked separately)
+    def _bfs_reachable(start_id: str, door_list: list) -> set:
+        adj: Dict[str, set] = {}
+        for d in door_list:
+            a, b = d.get("roomA"), d.get("roomB")
+            if a and b:
+                adj.setdefault(a, set()).add(b)
+                adj.setdefault(b, set()).add(a)
+        visited = {start_id}
+        queue = [start_id]
+        while queue:
+            curr = queue.pop(0)
+            for nbr in adj.get(curr, set()):
+                if nbr not in visited:
+                    visited.add(nbr)
+                    queue.append(nbr)
+        return visited
+
+    f1_doors = [d for d in doors if d.get("floor", 1) == 1]
+    # Find best start node: foyer > mudroom > garage > any entry
+    start_f1 = None
+    for etype in ("foyer", "mudroom", "garage"):
+        for r in f1_rooms:
+            if r["type"] == etype:
+                start_f1 = r["id"]
+                break
+        if start_f1:
+            break
+    if start_f1 is None and f1_rooms:
+        start_f1 = f1_rooms[0]["id"]
+
+    if start_f1:
+        reachable_f1 = _bfs_reachable(start_f1, f1_doors)
+        unreachable = [
+            r["name"] for r in f1_rooms
+            if r["type"] not in _OUTDOOR_TYPES and r["id"] not in reachable_f1
+        ]
+        if unreachable:
+            issues.append({
+                "type": "unreachable_f1",
+                "severity": "error",
+                "message": f"Floor-1 rooms cut off from entry: {', '.join(unreachable[:5])}",
+            })
+
+    # ── Check 4: Floor-2 connectivity from upper hall ────────────────────────
+    if is_two_story and f2_rooms:
+        f2_doors = [d for d in doors if d.get("floor", 1) == 2]
+        start_f2 = None
+        for r in f2_rooms:
+            if r["type"] == "hallway":
+                start_f2 = r["id"]
+                break
+        if start_f2 is None and f2_rooms:
+            start_f2 = f2_rooms[0]["id"]
+
+        if start_f2:
+            reachable_f2 = _bfs_reachable(start_f2, f2_doors)
+            unreachable_f2 = [
+                r["name"] for r in f2_rooms
+                if r["type"] not in _OUTDOOR_TYPES and r["id"] not in reachable_f2
+            ]
+            if unreachable_f2:
+                issues.append({
+                    "type": "unreachable_f2",
+                    "severity": "error",
+                    "message": f"Floor-2 rooms cut off from upper hall: {', '.join(unreachable_f2[:5])}",
+                })
+
+    # ── Check 5: Rooms within footprint ──────────────────────────────────────
+    oob = []
+    for r in rooms:
+        fh = total_h if r.get("floor", 1) == 1 else floor2_h
+        # Allow 2ft tolerance for rounding
+        if (r["x"] < -2 or r["y"] < -2
+                or r["x"] + r["width"] > total_w + 2
+                or r["y"] + r["height"] > fh + 2):
+            oob.append(r["name"])
+    if oob:
+        issues.append({
+            "type": "out_of_bounds",
+            "severity": "warning",
+            "message": f"Rooms outside footprint: {', '.join(oob[:3])}",
+        })
+
+    return issues
 
 
 def _generate_two_story_variant(
@@ -1025,7 +1426,26 @@ def _generate_two_story_variant(
     # Typical US two-story: ~40–50' wide.  Each floor ≈ sqft/2 SF.
     aspect = 1.4
     floor_area_target = sqft * 0.5
-    total_w = max(36, min(80, round(math.sqrt(floor_area_target * aspect) / 2) * 2))
+    sqrt_w = max(36, min(80, round(math.sqrt(floor_area_target * aspect) / 2) * 2))
+
+    # Minimum width = sum of IRC minimums for F1 social band rooms so they all fit
+    # in one row without wrapping. Without this, rooms lose wall adjacency → errors.
+    has_garage_f1 = any(r["type"] == "garage" for r in f1_sized)
+    if has_garage_f1:
+        # Entry band (zone 0, excl. garage itself) is its own full-width row — not social.
+        # Social width is just zones 1+2.
+        social_zones = {1, 2}
+    else:
+        # No garage: ALL zone-0 rooms (foyer, laundry, mudroom) are prepended to
+        # the social band in _place_rooms_architectural, so count them all.
+        social_zones = {0, 1, 2}
+    min_social_w = sum(
+        IRC_ROOM_SPECS.get(r["type"], (4, 4))[0]
+        for r in f1_sized
+        if ZONE_MAP.get(r["type"], 1) in social_zones and r["type"] != "garage"
+    )
+    total_w = max(sqrt_w, round(min_social_w / 2) * 2, 36)
+    total_w = min(80, total_w)
 
     # ── Per-floor heights from actual room areas (not full-house estimate) ─
     # Using actual F1/F2 room areas prevents the empty dead band that appears
@@ -1058,6 +1478,7 @@ def _generate_two_story_variant(
     f2_h = _trim_height(f2_placed, total_h_f2)
 
     f1_placed = _snap_and_fill(f1_placed, total_w, f1_h)
+    f1_placed = _fix_isolated_service_rooms(f1_placed, total_w)
     f1_placed = _fill_vertical_gaps(f1_placed, f1_h)
     # Recompute after fill — outdoor rooms may have extended
     f1_h = _trim_height(f1_placed, f1_h)
@@ -1091,18 +1512,23 @@ def _generate_two_story_variant(
     for r in all_rooms:
         r["color"] = ROOM_COLORS.get(r["type"], "#e8e4dc")
 
-    return {
+    plan = {
         "id":           f"moe_{uuid.uuid4().hex[:8]}",
         "name":         variant_name,
         "totalWidth":   total_w,
         "totalHeight":  f1_h,
         "floor2Height": f2_h,
         "ceilingHeight": ceiling_ft,
+        "style":        style,
         "stories":      2,
         "rooms":        all_rooms,
         "doors":        doors_f1 + doors_f2,
         "generator":    "moe+two-story",
     }
+
+    # Validate and attach issues
+    plan["validationIssues"] = _validate_design(plan)
+    return plan
 
 
 def _calculate_confidence(expert_weights: dict, plans: list, target_sqft: int) -> float:

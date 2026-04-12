@@ -71,6 +71,7 @@ export default function FloorPlanEditor({ plan, onUpdate }: Props) {
         <RoomInteriorView
           room={interiorRoom}
           ceilingHeight={ceilH}
+          style={plan.style ?? 'modern'}
           onClose={() => setInteriorRoom(null)}
         />
       )}
