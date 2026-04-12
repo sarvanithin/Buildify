@@ -1082,6 +1082,160 @@ select option {
   color: var(--text);
 }
 
+/* ─── Room Interior — AI Render tab ────────────────────── */
+
+.ri-tab-group {
+  display: flex;
+  gap: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.ri-tab {
+  background: none;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text2);
+  transition: all 0.12s;
+}
+
+.ri-tab.active {
+  background: var(--white);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+.ri-tab-ai { color: #7c3aed; }
+.ri-tab-ai.active { color: #6d28d9; }
+.ri-tab-ai:disabled { opacity: 0.7; cursor: not-allowed; }
+
+.ri-render-panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0f0f0f;
+  overflow: hidden;
+  position: relative;
+}
+
+.ri-render-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: rgba(255,255,255,0.85);
+}
+
+.ri-render-spinner {
+  width: 44px;
+  height: 44px;
+  border: 3px solid rgba(255,255,255,0.1);
+  border-top-color: #a78bfa;
+  border-radius: 50%;
+  animation: ri-spin 0.9s linear infinite;
+}
+
+@keyframes ri-spin { to { transform: rotate(360deg); } }
+
+.ri-render-loading-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.ri-render-loading-sub {
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  margin: 0;
+  max-width: 300px;
+  text-align: center;
+}
+
+.ri-render-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255,255,255,0.8);
+  max-width: 380px;
+  text-align: center;
+}
+
+.ri-render-error-icon { font-size: 32px; }
+.ri-render-error-title { font-size: 16px; font-weight: 600; margin: 0; }
+.ri-render-error-msg { font-size: 13px; color: rgba(255,255,255,0.5); margin: 0; }
+
+.ri-render-error-hint {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 11px;
+  font-family: monospace;
+  color: #a78bfa;
+  word-break: break-all;
+}
+
+.ri-render-retry {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px;
+  padding: 7px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.ri-render-retry:hover { background: rgba(255,255,255,0.18); }
+
+.ri-render-result {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.ri-render-image {
+  width: 100%;
+  flex: 1;
+  object-fit: cover;
+  display: block;
+}
+
+.ri-render-actions {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+}
+
+.ri-render-download,
+.ri-render-regenerate {
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.12s;
+}
+.ri-render-download:hover,
+.ri-render-regenerate:hover { background: rgba(0,0,0,0.8); }
+
 /* ─── Editor Tabs ─────────────────────────────────────── */
 
 .editor-tabs {

@@ -27,6 +27,7 @@ export interface FloorPlan {
   floor2Height?: number   // only present for two-story plans
   ceilingHeight: number   // feet
   stories?: number        // 1 (default) or 2
+  style?: string          // architectural style (modern, craftsman, etc.)
   rooms: Room[]
   doors: Door[]
 }

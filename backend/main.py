@@ -1,6 +1,18 @@
 import asyncio
 import io
 import json
+from pathlib import Path
+
+# Load .env if present (for local dev)
+_env_file = Path(__file__).parent / ".env"
+if _env_file.exists():
+    for _line in _env_file.read_text().splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith("#") and "=" in _line:
+            _k, _v = _line.split("=", 1)
+            import os as _os
+            if not _os.environ.get(_k.strip()):
+                _os.environ[_k.strip()] = _v.strip()
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
@@ -319,6 +331,35 @@ async def auth_upgrade(req: UpgradeRequest):
     if not result:
         raise HTTPException(status_code=404, detail="API key not found.")
     return {"tier": req.tier, "message": f"Upgraded to {req.tier} tier."}
+
+
+class RenderRequest(BaseModel):
+    room_type: str
+    style: str = "modern"
+    width_ft: float = 12.0
+    depth_ft: float = 12.0
+    ceiling_height: int = 9
+
+
+@app.post("/api/render/room")
+async def render_room(request: RenderRequest):
+    """Generate photorealistic AI room render via fal.ai Flux Schnell."""
+    from render import generate_render
+    try:
+        result = await generate_render(
+            request.room_type,
+            request.style,
+            request.width_ft,
+            request.depth_ft,
+            request.ceiling_height,
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=502, detail=f"Render API error: {e.response.status_code}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Render failed: {str(e)}")
 
 
 @app.post("/api/export/dxf")

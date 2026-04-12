@@ -1,8 +1,9 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, PerspectiveCamera, Environment } from '@react-three/drei'
 import * as THREE from 'three'
 import { Room } from '../types/floorplan'
+import { renderRoom } from '../api/client'
 
 // US-realistic interior materials per room type
 const ROOM_MATS: Record<string, {
@@ -362,10 +363,13 @@ function RoomScene({ room, wallH }: { room: Room; wallH: number }) {
 interface Props {
   room: Room
   ceilingHeight: number
+  style?: string
   onClose: () => void
 }
 
-export default function RoomInteriorView({ room, ceilingHeight, onClose }: Props) {
+type ViewTab = '3d' | 'render'
+
+export default function RoomInteriorView({ room, ceilingHeight, style = 'modern', onClose }: Props) {
   const wallH = ceilingHeight * 0.3048
   const rw = room.width * 0.3048
   const rd = room.height * 0.3048
@@ -373,6 +377,34 @@ export default function RoomInteriorView({ room, ceilingHeight, onClose }: Props
   const camX = 0
   const camY = wallH * 0.42
   const camZ = rd * 0.42
+
+  const [activeTab, setActiveTab] = useState<ViewTab>('3d')
+  const [renderUrl, setRenderUrl] = useState<string | null>(null)
+  const [renderLoading, setRenderLoading] = useState(false)
+  const [renderError, setRenderError] = useState<string | null>(null)
+
+  async function handleGenerateRender() {
+    setRenderLoading(true)
+    setRenderError(null)
+    setActiveTab('render')
+    try {
+      const result = await renderRoom(
+        room.type,
+        style,
+        room.width,
+        room.height,
+        ceilingHeight,
+      )
+      setRenderUrl(result.image_url)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Render failed'
+      // Extract backend detail message if axios error
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setRenderError(detail ?? msg)
+    } finally {
+      setRenderLoading(false)
+    }
+  }
 
   return (
     <div className="room-interior-overlay">
@@ -384,35 +416,99 @@ export default function RoomInteriorView({ room, ceilingHeight, onClose }: Props
             {room.width.toFixed(0)}' × {room.height.toFixed(0)}' · {Math.round(room.width * room.height)} sq ft · {ceilingHeight}ft ceiling
           </span>
         </div>
-        <button className="room-interior-close" onClick={onClose}>✕ Close</button>
+
+        <div className="ri-tab-group">
+          <button
+            className={`ri-tab ${activeTab === '3d' ? 'active' : ''}`}
+            onClick={() => setActiveTab('3d')}
+          >
+            3D Interior
+          </button>
+          <button
+            className={`ri-tab ri-tab-ai ${activeTab === 'render' ? 'active' : ''}`}
+            onClick={activeTab === 'render' ? undefined : handleGenerateRender}
+            disabled={renderLoading}
+          >
+            {renderLoading ? '⟳ Generating…' : '✦ AI Render'}
+          </button>
+        </div>
+
+        <button className="room-interior-close" onClick={onClose}>✕</button>
       </div>
 
-      <div className="room-interior-canvas">
-        <Canvas shadows gl={{ antialias: true }}>
-          <PerspectiveCamera makeDefault position={[camX, camY, camZ]} fov={72} />
-          <color attach="background" args={['#F0ECE4']} />
+      {activeTab === '3d' && (
+        <div className="room-interior-canvas">
+          <Canvas shadows gl={{ antialias: true }}>
+            <PerspectiveCamera makeDefault position={[camX, camY, camZ]} fov={72} />
+            <color attach="background" args={['#F0ECE4']} />
+            <ambientLight intensity={0.5} color="#FFF8F0" />
+            <directionalLight position={[rw * 0.5, wallH * 1.5, rd]} intensity={0.6} color="#FFF4E0" castShadow />
+            <RoomScene room={room} wallH={wallH} />
+            <OrbitControls
+              target={[0, wallH * 0.4, 0]}
+              minDistance={0.5}
+              maxDistance={Math.max(rw, rd) * 1.2}
+              maxPolarAngle={Math.PI / 2 + 0.1}
+              enablePan={false}
+            />
+          </Canvas>
+        </div>
+      )}
 
-          <ambientLight intensity={0.5} color="#FFF8F0" />
-          <directionalLight position={[rw * 0.5, wallH * 1.5, rd]} intensity={0.6} color="#FFF4E0" castShadow />
-
-          <RoomScene room={room} wallH={wallH} />
-
-          <OrbitControls
-            target={[0, wallH * 0.4, 0]}
-            minDistance={0.5}
-            maxDistance={Math.max(rw, rd) * 1.2}
-            maxPolarAngle={Math.PI / 2 + 0.1}
-            enablePan={false}
-          />
-        </Canvas>
-      </div>
+      {activeTab === 'render' && (
+        <div className="ri-render-panel">
+          {renderLoading && (
+            <div className="ri-render-loading">
+              <div className="ri-render-spinner" />
+              <p className="ri-render-loading-title">Generating AI render…</p>
+              <p className="ri-render-loading-sub">
+                Flux AI is visualizing your {room.name.toLowerCase()} in {style} style
+                <br />
+                <span style={{ fontSize: '11px', opacity: 0.5 }}>Free render — may take 10–20 seconds</span>
+              </p>
+            </div>
+          )}
+          {!renderLoading && renderError && (
+            <div className="ri-render-error">
+              <div className="ri-render-error-icon">⚠</div>
+              <p className="ri-render-error-title">Render unavailable</p>
+              <p className="ri-render-error-msg">{renderError}</p>
+              {renderError.includes('FAL_KEY') && (
+                <code className="ri-render-error-hint">
+                  Add FAL_KEY=your_key to backend/.env and restart the server
+                </code>
+              )}
+              <button className="ri-render-retry" onClick={handleGenerateRender}>
+                Try again
+              </button>
+            </div>
+          )}
+          {!renderLoading && !renderError && renderUrl && (
+            <div className="ri-render-result">
+              <img
+                src={renderUrl}
+                alt={`AI render of ${room.name}`}
+                className="ri-render-image"
+              />
+              <div className="ri-render-actions">
+                <a href={renderUrl} target="_blank" rel="noreferrer" className="ri-render-download">
+                  ↗ Open full size
+                </a>
+                <button className="ri-render-regenerate" onClick={handleGenerateRender}>
+                  ↺ Regenerate
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="room-interior-info">
         <div className="ri-stat"><span>Width</span><strong>{room.width.toFixed(0)}'</strong></div>
         <div className="ri-stat"><span>Depth</span><strong>{room.height.toFixed(0)}'</strong></div>
         <div className="ri-stat"><span>Area</span><strong>{Math.round(room.width * room.height)} sq ft</strong></div>
         <div className="ri-stat"><span>Ceiling</span><strong>{ceilingHeight} ft</strong></div>
-        <div className="ri-stat"><span>Perimeter</span><strong>{Math.round(2 * (room.width + room.height))} ft</strong></div>
+        <div className="ri-stat"><span>Style</span><strong>{style}</strong></div>
       </div>
     </div>
   )
