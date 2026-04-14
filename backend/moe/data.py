@@ -21,29 +21,31 @@ from .config import MOEConfig
 # ─────────────────────────────────────────────────────────────────────────────
 
 IRC_ROOM_SPECS = {
-    # type: (min_w, min_h, std_w, std_h, premium_w, premium_h) in feet
-    # Sizes based on IRC R304 minimums and US residential architectural standards
-    "living_room":       (12, 14, 14, 18, 18, 22),
-    "kitchen":           (10, 12, 12, 14, 14, 16),   # IRC R304: ≥70 sqft; 10×12=120 sqft standard
-    "dining_room":       (11, 11, 12, 14, 14, 16),
-    "family_room":       (12, 14, 14, 16, 16, 20),
-    "master_bedroom":    (12, 14, 14, 15, 16, 18),   # Primary suite: 12×14=168 sqft minimum
-    "bedroom":           (10, 10, 11, 12, 12, 14),   # IRC R304: ≥70 sqft; 10×10=100 sqft
-    "ensuite_bathroom":  (7, 9, 9, 11, 11, 13),
-    "bathroom":          (5, 8, 6, 9, 8, 10),
-    "half_bath":         (3, 6, 4, 6, 5, 7),
-    "hallway":           (4, 4, 4, 6, 5, 8),         # IRC R311.7: ≥36in (3ft) min; 4ft preferred
-    "foyer":             (6, 6, 8, 8, 10, 12),
-    "home_office":       (9, 10, 10, 12, 12, 14),
-    "laundry_room":      (5, 6, 7, 8, 8, 10),
-    "garage":            (20, 20, 24, 24, 32, 26),   # 1-car: 20×20; 2-car: 24×24 (IRC standard)
-    "walk_in_closet":    (5, 7, 7, 8, 8, 10),
-    "closet":            (3, 3, 4, 5, 5, 6),
-    "pantry":            (5, 5, 6, 7, 7, 9),   # Walk-in pantry: ≥5×5=25 sqft standard
-    "mudroom":           (5, 6, 7, 8, 8, 10),
-    "utility_room":      (5, 6, 6, 8, 8, 10),
-    "patio":             (10, 8, 16, 12, 20, 16),
-    "deck":              (10, 8, 14, 12, 16, 16),
+    # (min_w, min_h, std_w, std_h, premium_w, premium_h) — all in feet
+    # min = IRC R304 code minimum (or p25 of NAHB survey at smallest tier)
+    # std = NAHB mean at 1400–1800 sqft ("m" tier)
+    # premium = NAHB p75 at 3200+ sqft ("xxl" tier)
+    "living_room":      (11, 12, 15, 16, 24, 26),
+    "kitchen":          (9,  10, 13, 13, 20, 18),
+    "dining_room":      (9,  9,  12, 12, 18, 16),
+    "family_room":      (11, 11, 14, 14, 22, 20),
+    "master_bedroom":   (11, 11, 14, 14, 20, 20),
+    "bedroom":          (9,  9,  12, 12, 15, 15),
+    "ensuite_bathroom": (6,  7,  8,  10, 13, 14),
+    "bathroom":         (5,  7,  6,  9,  9,  11),
+    "half_bath":        (3,  6,  4,  6,  5,  7),
+    "hallway":          (4,  4,  4,  6,  5,  8),
+    "foyer":            (5,  5,  8,  8,  14, 14),
+    "home_office":      (8,  9,  11, 11, 16, 15),
+    "laundry_room":     (5,  5,  7,  8,  10, 11),
+    "garage":           (20, 20, 24, 24, 32, 26),
+    "walk_in_closet":   (4,  5,  7,  8,  12, 14),
+    "closet":           (3,  3,  4,  5,  5,  6),
+    "pantry":           (5,  5,  6,  7,  7,  9),
+    "mudroom":          (4,  5,  7,  8,  10, 11),
+    "utility_room":     (5,  6,  6,  8,  8,  10),
+    "patio":            (10, 8,  16, 12, 20, 16),
+    "deck":             (10, 8,  14, 12, 16, 16),
 }
 
 # Adjacency preferences (room_a → room_b, strength 0-1)
