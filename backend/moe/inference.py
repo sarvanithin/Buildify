@@ -1030,13 +1030,19 @@ def predict_floor_plan(constraints: dict, num_variants: int = 3,
             # These are FLOORS, not caps — rooms can be larger from prior phases.
             # Tiers: (min_sqft_threshold, min_w, min_h)
             _TIER_MINS: dict = {
-                "kitchen":      [(1000, 10, 10), (1600, 12, 12), (2000, 14, 12), (2600, 16, 14), (3200, 18, 14)],
-                "living_room":  [(1000, 12, 12), (1600, 16, 12), (2000, 18, 14), (2600, 20, 14), (3200, 22, 16)],
-                "dining_room":  [(1000, 10, 10), (1600, 12, 12), (2000, 14, 12), (2600, 14, 12)],
-                "family_room":  [(1000, 12, 12), (1600, 14, 12), (2000, 16, 14), (2600, 18, 14)],
-                "master_bedroom": [(1000, 12, 12), (1800, 14, 14), (2400, 16, 14), (3000, 16, 16)],
-                "ensuite_bathroom": [(1000, 7, 9), (2000, 8, 10), (2800, 10, 10)],
-                "home_office":  [(1000, 10, 10), (2000, 12, 10), (2800, 12, 12)],
+                "bathroom": [(0, 5, 7), (1000, 5, 7), (1400, 5, 8), (1800, 6, 8), (2400, 6, 9), (3200, 7, 9)],
+                "bedroom": [(0, 9, 9), (1000, 10, 10), (1400, 11, 11), (1800, 11, 12), (2400, 12, 12), (3200, 12, 13)],
+                "dining_room": [(0, 9, 9), (1000, 10, 10), (1400, 11, 11), (1800, 12, 12), (2400, 13, 13), (3200, 14, 14)],
+                "ensuite_bathroom": [(0, 6, 7), (1000, 6, 8), (1400, 7, 9), (1800, 8, 10), (2400, 9, 11), (3200, 10, 12)],
+                "family_room": [(0, 11, 11), (1000, 12, 12), (1400, 13, 13), (1800, 14, 14), (2400, 16, 15), (3200, 18, 16)],
+                "foyer": [(0, 5, 5), (1000, 6, 6), (1400, 7, 7), (1800, 8, 8), (2400, 9, 9), (3200, 10, 10)],
+                "home_office": [(0, 8, 9), (1000, 9, 9), (1400, 10, 10), (1800, 11, 11), (2400, 11, 12), (3200, 12, 12)],
+                "kitchen": [(0, 9, 10), (1000, 10, 11), (1400, 12, 12), (1800, 13, 13), (2400, 14, 14), (3200, 16, 15)],
+                "laundry_room": [(0, 5, 5), (1000, 5, 6), (1400, 6, 7), (1800, 7, 7), (2400, 7, 8), (3200, 8, 9)],
+                "living_room": [(0, 11, 12), (1000, 12, 14), (1400, 14, 15), (1800, 16, 16), (2400, 18, 18), (3200, 20, 20)],
+                "master_bedroom": [(0, 11, 11), (1000, 12, 12), (1400, 13, 13), (1800, 14, 14), (2400, 15, 15), (3200, 16, 16)],
+                "mudroom": [(0, 4, 5), (1000, 5, 6), (1400, 6, 7), (1800, 7, 7), (2400, 7, 8), (3200, 8, 9)],
+                "walk_in_closet": [(0, 4, 5), (1000, 5, 6), (1400, 6, 7), (1800, 7, 8), (2400, 8, 9), (3200, 9, 10)],
             }
             for r in conditioned:
                 tiers = _TIER_MINS.get(r["type"])
@@ -1549,8 +1555,8 @@ def _generate_two_story_variant(
     total_h_f2 = min(50, total_h_f2)
 
     # Place each floor independently
-    f1_placed = _place_rooms_architectural(f1_sized, total_w, total_h_f1, sqft, expert_weights)
-    f2_placed = _place_rooms_architectural(f2_sized, total_w, total_h_f2, sqft, expert_weights)
+    f1_placed = _place_rooms_architectural(f1_sized, total_w, total_h_f1, style)
+    f2_placed = _place_rooms_architectural(f2_sized, total_w, total_h_f2, style)
 
     # Snap and fill with the height derived from actual placement extent,
     # NOT the estimate — this eliminates the empty bottom band.
