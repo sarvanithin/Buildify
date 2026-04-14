@@ -32,3 +32,11 @@ embed_cache.json
 .vscode/
 .idea/
 *.swp
+
+# Training data (large — store locally, upload directly to GPU host)
+backend/training/data/
+backend/training/constraints_all.jsonl
+fine_tune/train.jsonl
+fine_tune/val.jsonl
+fine_tune/final_model/
+fine_tune/checkpoints/
