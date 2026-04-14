@@ -64,10 +64,9 @@ class ArchitectLLM:
 
     def generate(self, constraints: dict, max_new_tokens: int = 3000) -> dict:
         prompt = (
-            f"<|begin_of_text|>"
-            f"<|start_header_id|>system<|end_header_id|>\n{SYS_PROMPT}<|eot_id|>"
-            f"<|start_header_id|>user<|end_header_id|>\n{json.dumps(constraints)}<|eot_id|>"
-            f"<|start_header_id|>assistant<|end_header_id|>\n"
+            f"<|system|>\n{SYS_PROMPT}<|end|>\n"
+            f"<|user|>\n{json.dumps(constraints)}<|end|>\n"
+            f"<|assistant|>\n"
         )
         inputs = self.tokenizer(prompt, return_tensors='pt').to(self.model.device)
 

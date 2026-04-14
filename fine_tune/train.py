@@ -1,8 +1,8 @@
 """
 LoRA fine-tuning for architectural floor plan generation.
-Base model: meta-llama/Meta-Llama-3.1-8B-Instruct
+Base model: microsoft/Phi-3.5-mini-instruct (3.8B)
 Method: QLoRA (4-bit quantization + LoRA adapters)
-Hardware: single A100 40GB (RunPod / Lambda Labs)
+Hardware: Kaggle free tier (2x T4, 32GB) — ~5-6 hours
 
 Usage:
     pip install -r requirements.txt
@@ -29,14 +29,14 @@ HERE = Path(__file__).parent
 TRAIN_FILE = HERE / 'train.jsonl'
 VAL_FILE   = HERE / 'val.jsonl'
 
-MODEL_ID  = 'meta-llama/Meta-Llama-3.1-8B-Instruct'
-MAX_SEQ   = 4096   # architectural layouts can be ~2000 tokens
-BATCH     = 2
-GRAD_ACCUM = 8     # effective batch = 16
-EPOCHS    = 3
-LR        = 2e-4
-LORA_R    = 64
-LORA_ALPHA = 128
+MODEL_ID   = 'microsoft/Phi-3.5-mini-instruct'   # 3.8B — fits T4 16GB with QLoRA
+MAX_SEQ    = 3072   # architectural layouts ~1500-2000 tokens
+BATCH      = 2
+GRAD_ACCUM = 8      # effective batch = 16
+EPOCHS     = 3
+LR         = 2e-4
+LORA_R     = 32
+LORA_ALPHA = 64
 
 SYS_PROMPT = (HERE.parent / 'backend/training/prompts/architectural_system_prompt.txt').read_text()
 
@@ -46,12 +46,11 @@ def load_jsonl(path: Path) -> list[dict]:
 
 
 def format_example(ex: dict) -> str:
-    """Format as LLaMA3 chat template."""
+    """Format as Phi-3.5 chat template."""
     return (
-        f"<|begin_of_text|>"
-        f"<|start_header_id|>system<|end_header_id|>\n{SYS_PROMPT}<|eot_id|>"
-        f"<|start_header_id|>user<|end_header_id|>\n{ex['input']}<|eot_id|>"
-        f"<|start_header_id|>assistant<|end_header_id|>\n{ex['output']}<|eot_id|>"
+        f"<|system|>\n{SYS_PROMPT}<|end|>\n"
+        f"<|user|>\n{ex['input']}<|end|>\n"
+        f"<|assistant|>\n{ex['output']}<|end|>"
     )
 
 
@@ -82,7 +81,9 @@ def main():
         quantization_config=bnb_config,
         device_map='auto',
         torch_dtype=torch.bfloat16,
-        attn_implementation='flash_attention_2',
+        trust_remote_code=True,
+        # flash_attention_2 not available on T4 — use sdpa instead
+        attn_implementation='sdpa',
     )
     model = prepare_model_for_kbit_training(model)
 
