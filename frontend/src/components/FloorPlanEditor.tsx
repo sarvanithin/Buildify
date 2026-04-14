@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { FloorPlan, Room } from '../types/floorplan'
+import { FloorPlan, Room, Constraints } from '../types/floorplan'
 import View3D from './View3D'
 import RoomInteriorView from './RoomInteriorView'
 import ElevationView from './ElevationView'
@@ -12,10 +12,11 @@ import ArchPlan from './ArchPlan'
 
 interface Props {
   plan: FloorPlan
-  onUpdate: (plan: FloorPlan) => void
+  constraints: Constraints
+  onUpdate: (plan: FloorPlan, updatedConstraints?: Constraints) => void
 }
 
-type MainTab = 'plan' | 'elevations' | 'spec' | 'cost' | 'score' | 'chat'
+type MainTab = 'plan' | 'elevations' | 'spec' | 'cost' | 'score'
 type ViewMode = '2d' | 'exterior' | 'dollhouse' | 'walkthrough' | 'topview'
 
 const TAB_LABELS: { id: MainTab; label: string }[] = [
@@ -24,7 +25,6 @@ const TAB_LABELS: { id: MainTab; label: string }[] = [
   { id: 'spec', label: 'Spec Schedule' },
   { id: 'cost', label: 'Cost Estimate' },
   { id: 'score', label: 'Design Score' },
-  { id: 'chat', label: '✦ AI Chat' },
 ]
 
 const VIEW_BUTTONS: { id: ViewMode; label: string; icon: string }[] = [
@@ -35,7 +35,7 @@ const VIEW_BUTTONS: { id: ViewMode; label: string; icon: string }[] = [
   { id: 'topview', label: 'Top View', icon: '⬜' },
 ]
 
-export default function FloorPlanEditor({ plan, onUpdate }: Props) {
+export default function FloorPlanEditor({ plan, constraints, onUpdate }: Props) {
   const [tab, setTab] = useState<MainTab>('plan')
   const [viewMode, setViewMode] = useState<ViewMode>('2d')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -44,6 +44,7 @@ export default function FloorPlanEditor({ plan, onUpdate }: Props) {
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 })
   const [showSitePlan, setShowSitePlan] = useState(false)
   const [showStructGrid, setShowStructGrid] = useState(false)
+  const [chatOpen, setChatOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -97,11 +98,18 @@ export default function FloorPlanEditor({ plan, onUpdate }: Props) {
 
         <button className="export-btn" onClick={() => exportPdf(plan)}>↓ PDF</button>
         <button className="export-btn" onClick={() => exportDxf(plan)}>↓ CAD</button>
+        <button
+          className={`chat-toggle-btn ${chatOpen ? 'active' : ''}`}
+          onClick={() => setChatOpen(v => !v)}
+          title="AI Design Assistant"
+        >
+          ✦ AI Chat
+        </button>
       </div>
 
       {/* ── Tab content ──────────────────────────────────────────────────── */}
       {tab === 'plan' && (
-        <div className="editor-body">
+        <div className={`editor-body${chatOpen ? ' editor-body-split' : ''}`}>
           <div className="editor-canvas" ref={containerRef}>
             {/* View mode toggle — 5 modes */}
             <div className="plan-sub-controls">
@@ -237,6 +245,17 @@ export default function FloorPlanEditor({ plan, onUpdate }: Props) {
               <div className="stat-row"><span>Ceiling</span><span>{ceilH} ft</span></div>
             </div>
           </div>
+
+          {/* ── AI Chat side panel ── */}
+          {chatOpen && (
+            <div className="editor-chat-panel">
+              <ChatPanel
+                plan={plan}
+                constraints={constraints}
+                onPlanUpdate={(updatedPlan, updatedC) => onUpdate(updatedPlan, updatedC)}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -264,11 +283,6 @@ export default function FloorPlanEditor({ plan, onUpdate }: Props) {
         </div>
       )}
 
-      {tab === 'chat' && (
-        <div className="tab-content-chat">
-          <ChatPanel plan={plan} onPlanUpdate={onUpdate} />
-        </div>
-      )}
     </div>
   )
 }

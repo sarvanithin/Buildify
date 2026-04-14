@@ -741,6 +741,54 @@ select option {
   overflow: hidden;
 }
 
+.editor-body-split .editor-canvas {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Hide inspector when chat panel is open to give plan canvas more room */
+.editor-body-split .inspector {
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  border: none;
+}
+
+.editor-chat-panel {
+  width: 360px;
+  flex-shrink: 0;
+  border-left: 1px solid #E5E7EB;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #FAFAFA;
+  transition: width 0.2s ease;
+}
+
+.chat-toggle-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid #D1D5DB;
+  background: white;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.chat-toggle-btn:hover {
+  border-color: #2563EB;
+  color: #2563EB;
+}
+
+.chat-toggle-btn.active {
+  background: #2563EB;
+  border-color: #2563EB;
+  color: white;
+}
+
 .editor-canvas {
   flex: 1;
   overflow: hidden;
@@ -756,6 +804,7 @@ select option {
   background: var(--white);
   border-left: 1px solid var(--border);
   overflow-y: auto;
+  transition: width 0.2s ease, min-width 0.2s ease;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -2104,6 +2153,54 @@ select option {
 .chat-send-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.chat-delta {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: #F0FDF4;
+  border: 1px solid #86EFAC;
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.chat-delta-error {
+  background: #FFF1F2;
+  border-color: #FDA4AF;
+}
+
+.chat-delta-offtopic {
+  background: #F9FAFB;
+  border-color: #D1D5DB;
+}
+
+.chat-delta-offtopic .chat-delta-label {
+  color: #6B7280;
+}
+
+.chat-delta-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #15803D;
+  margin-right: 4px;
+}
+
+.chat-delta-error .chat-delta-label {
+  color: #BE123C;
+}
+
+.chat-delta-chip {
+  font-size: 11px;
+  background: #DCFCE7;
+  color: #166534;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-family: monospace;
 }
 
 /* ─── MOE Toggle ─────────────────────────────────────── */
