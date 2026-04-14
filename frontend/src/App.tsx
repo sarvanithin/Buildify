@@ -18,12 +18,14 @@ export default function App() {
     confidence: number
     irc_compliant: boolean
   } | null>(null)
+  const [activeConstraints, setActiveConstraints] = useState<Constraints | null>(null)
 
   async function handleGenerate(c: Constraints, useMOE?: boolean) {
     setLoading(true)
     setError(null)
     setPlans([])
     setMoeData(null)
+    setActiveConstraints(c)
     setScreen('gallery')
     try {
       if (useMOE) {
@@ -62,9 +64,10 @@ export default function App() {
     setScreen('editor')
   }
 
-  function handleUpdate(updated: FloorPlan) {
+  function handleUpdate(updated: FloorPlan, updatedConstraints?: Constraints) {
     setSelected(updated)
     setPlans(prev => prev.map(p => (p.id === updated.id ? updated : p)))
+    if (updatedConstraints) setActiveConstraints(updatedConstraints)
   }
 
   return (
@@ -93,7 +96,11 @@ export default function App() {
           <FloorPlanGallery plans={plans} loading={loading} onSelect={handleSelect} />
         )}
         {screen === 'editor' && selected && (
-          <FloorPlanEditor plan={selected} onUpdate={handleUpdate} />
+          <FloorPlanEditor
+            plan={selected}
+            constraints={activeConstraints!}
+            onUpdate={handleUpdate}
+          />
         )}
       </main>
     </div>

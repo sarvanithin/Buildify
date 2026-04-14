@@ -67,6 +67,25 @@ export async function sendChatMessage(
   return data
 }
 
+export interface DesignChatResult {
+  explanation: string
+  delta: Record<string, unknown>
+  updated_constraints: Record<string, unknown>
+  updated_plan: FloorPlan | null
+  is_question: boolean
+  is_off_topic?: boolean
+  validation_error?: string
+}
+
+export async function sendDesignChat(
+  plan: FloorPlan,
+  constraints: Record<string, unknown>,
+  messages: ChatMsg[]
+): Promise<DesignChatResult> {
+  const { data } = await api.post('/chat/design', { floor_plan: plan, constraints, messages })
+  return data
+}
+
 export interface RenderResult {
   image_url: string
   cached: boolean
