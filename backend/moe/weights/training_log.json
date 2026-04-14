@@ -2,337 +2,505 @@
   {
     "epoch": 1,
     "train": {
-      "total": 1.8662,
-      "coords": 0.0444,
-      "types": 1.7365,
+      "total": 0.3829,
+      "coords": 0.0322,
+      "types": 0.346,
       "compliance": 0.0,
-      "adjacency": 0.4251,
-      "balance": 0.0019
+      "adjacency": 0.1263,
+      "balance": -0.2067
     },
     "val": {
-      "total": 1.8123,
-      "coords": 0.0448,
-      "types": 1.7359,
+      "total": 7.912,
+      "coords": 0.0272,
+      "types": 7.8952,
       "compliance": 0.0,
-      "adjacency": 0.1569,
-      "balance": 0.0024
+      "adjacency": 0.0513,
+      "balance": -0.2072
     },
-    "lr": 0.001,
-    "elapsed_s": 65.3
+    "lr": 0.0003,
+    "elapsed_s": 180.7
   },
   {
     "epoch": 2,
     "train": {
-      "total": 0.8304,
-      "coords": 0.0452,
-      "types": 0.7512,
+      "total": 0.0389,
+      "coords": 0.0239,
+      "types": 0.0208,
       "compliance": 0.0,
-      "adjacency": 0.1689,
-      "balance": 0.0024
+      "adjacency": 0.0748,
+      "balance": -0.2075
     },
     "val": {
-      "total": 3.9432,
-      "coords": 0.0473,
-      "types": 3.8342,
+      "total": 8.5134,
+      "coords": 0.0217,
+      "types": 8.4873,
       "compliance": 0.0,
-      "adjacency": 0.3077,
-      "balance": 0.001
+      "adjacency": 0.1255,
+      "balance": -0.2077
     },
-    "lr": 0.0009990143508499217,
-    "elapsed_s": 37.2
+    "lr": 0.0002999487700838458,
+    "elapsed_s": 180.7
   },
   {
     "epoch": 3,
     "train": {
-      "total": 0.4352,
-      "coords": 0.0446,
-      "types": 0.3539,
+      "total": 0.0215,
+      "coords": 0.0205,
+      "types": 0.0088,
       "compliance": 0.0,
-      "adjacency": 0.1824,
-      "balance": 0.0016
+      "adjacency": 0.0649,
+      "balance": -0.2077
     },
     "val": {
-      "total": 4.3033,
-      "coords": 0.0477,
-      "types": 4.2093,
+      "total": 7.8068,
+      "coords": 0.0203,
+      "types": 7.7655,
       "compliance": 0.0,
-      "adjacency": 0.2309,
-      "balance": 0.0019
+      "adjacency": 0.2089,
+      "balance": -0.2078
     },
-    "lr": 0.0009960612933065818,
-    "elapsed_s": 37.2
+    "lr": 0.0002997951154458088,
+    "elapsed_s": 190.0
   },
   {
     "epoch": 4,
     "train": {
-      "total": 0.3318,
-      "coords": 0.0433,
-      "types": 0.2537,
+      "total": 0.0132,
+      "coords": 0.0175,
+      "types": 0.0048,
       "compliance": 0.0,
-      "adjacency": 0.1731,
-      "balance": 0.0021
+      "adjacency": 0.0586,
+      "balance": -0.2077
     },
     "val": {
-      "total": 4.5142,
-      "coords": 0.0458,
-      "types": 4.4121,
+      "total": 7.6469,
+      "coords": 0.0156,
+      "types": 7.5461,
       "compliance": 0.0,
-      "adjacency": 0.2809,
-      "balance": 0.002
+      "adjacency": 0.53,
+      "balance": -0.2077
     },
-    "lr": 0.00099115248173898,
-    "elapsed_s": 37.2
+    "lr": 0.00029953914139310266,
+    "elapsed_s": 198.9
   },
   {
     "epoch": 5,
     "train": {
-      "total": 0.2587,
-      "coords": 0.0415,
-      "types": 0.1768,
+      "total": 0.0085,
+      "coords": 0.0152,
+      "types": 0.0031,
       "compliance": 0.0,
-      "adjacency": 0.2018,
-      "balance": 0.0017
+      "adjacency": 0.0549,
+      "balance": -0.2077
     },
     "val": {
-      "total": 5.3016,
-      "coords": 0.0454,
-      "types": 5.1951,
+      "total": 8.6471,
+      "coords": 0.0155,
+      "types": 8.2603,
       "compliance": 0.0,
-      "adjacency": 0.3048,
-      "balance": 0.001
+      "adjacency": 1.9604,
+      "balance": -0.2078
     },
-    "lr": 0.0009843072889837512,
-    "elapsed_s": 37.3
+    "lr": 0.00029918102335755686,
+    "elapsed_s": 194.4
   },
   {
     "epoch": 6,
     "train": {
-      "total": 0.1831,
-      "coords": 0.041,
-      "types": 0.1073,
+      "total": 0.0078,
+      "coords": 0.015,
+      "types": 0.0027,
       "compliance": 0.0,
-      "adjacency": 0.1732,
-      "balance": 0.0014
+      "adjacency": 0.0538,
+      "balance": -0.2077
     },
     "val": {
-      "total": 6.1626,
-      "coords": 0.0456,
-      "types": 6.0469,
+      "total": 9.3775,
+      "coords": 0.0156,
+      "types": 9.1103,
       "compliance": 0.0,
-      "adjacency": 0.3496,
-      "balance": 0.0011
+      "adjacency": 1.3617,
+      "balance": -0.2079
     },
-    "lr": 0.0009755527298894294,
-    "elapsed_s": 37.6
+    "lr": 0.00029872100677538467,
+    "elapsed_s": 183.6
   },
   {
     "epoch": 7,
     "train": {
-      "total": 0.1563,
-      "coords": 0.0404,
-      "types": 0.0829,
+      "total": 0.0068,
+      "coords": 0.0146,
+      "types": 0.0024,
       "compliance": 0.0,
-      "adjacency": 0.1646,
-      "balance": 0.0013
+      "adjacency": 0.0528,
+      "balance": -0.2078
     },
     "val": {
-      "total": 6.5255,
-      "coords": 0.0459,
-      "types": 6.3736,
+      "total": 11.2719,
+      "coords": 0.0166,
+      "types": 11.0474,
       "compliance": 0.0,
-      "adjacency": 0.5267,
-      "balance": 0.0066
+      "adjacency": 1.1437,
+      "balance": -0.2079
     },
-    "lr": 0.0009649233547011816,
-    "elapsed_s": 36.4
+    "lr": 0.0002981594069189731,
+    "elapsed_s": 181.2
   },
   {
     "epoch": 8,
     "train": {
-      "total": 0.1551,
-      "coords": 0.0397,
-      "types": 0.0806,
-      "compliance": 0.0,
-      "adjacency": 0.1715,
-      "balance": 0.0048
+      "total": 0.0063,
+      "coords": 0.0144,
+      "types": 0.0022,
+      "compliance": 0.0001,
+      "adjacency": 0.0529,
+      "balance": -0.2078
     },
     "val": {
-      "total": 7.0105,
-      "coords": 0.0428,
-      "types": 6.8581,
+      "total": 12.4465,
+      "coords": 0.0167,
+      "types": 12.2892,
       "compliance": 0.0,
-      "adjacency": 0.5476,
-      "balance": 0.0011
+      "adjacency": 0.8071,
+      "balance": -0.2078
     },
-    "lr": 0.0009524611127067769,
-    "elapsed_s": 38.0
+    "lr": 0.0002974966086808112,
+    "elapsed_s": 181.2
   },
   {
     "epoch": 9,
     "train": {
-      "total": 0.1072,
-      "coords": 0.0388,
-      "types": 0.0364,
-      "compliance": 0.0,
-      "adjacency": 0.1599,
-      "balance": 0.0009
+      "total": 0.0058,
+      "coords": 0.014,
+      "types": 0.002,
+      "compliance": 0.0001,
+      "adjacency": 0.0532,
+      "balance": -0.2078
     },
     "val": {
-      "total": 7.2084,
-      "coords": 0.041,
-      "types": 7.0712,
+      "total": 13.6004,
+      "coords": 0.0185,
+      "types": 13.4754,
       "compliance": 0.0,
-      "adjacency": 0.4801,
-      "balance": 0.0011
+      "adjacency": 0.6359,
+      "balance": -0.2078
     },
-    "lr": 0.0009382151866819099,
-    "elapsed_s": 38.0
+    "lr": 0.0002967330663097039,
+    "elapsed_s": 186.7
   },
   {
     "epoch": 10,
     "train": {
-      "total": 0.0979,
-      "coords": 0.0375,
-      "types": 0.0281,
-      "compliance": 0.0,
-      "adjacency": 0.1609,
-      "balance": 0.0009
+      "total": 0.0048,
+      "coords": 0.0133,
+      "types": 0.0016,
+      "compliance": 0.0001,
+      "adjacency": 0.0532,
+      "balance": -0.2078
     },
     "val": {
-      "total": 7.3803,
-      "coords": 0.0385,
-      "types": 7.2263,
+      "total": 13.7373,
+      "coords": 0.0203,
+      "types": 13.3528,
       "compliance": 0.0,
-      "adjacency": 0.5769,
-      "balance": 0.001
+      "adjacency": 1.9248,
+      "balance": -0.2078
     },
-    "lr": 0.0009222417987882566,
-    "elapsed_s": 36.6
+    "lr": 0.0002958693030994526,
+    "elapsed_s": 183.7
   },
   {
     "epoch": 11,
     "train": {
-      "total": 0.1165,
-      "coords": 0.0363,
-      "types": 0.0472,
+      "total": 0.0034,
+      "coords": 0.0122,
+      "types": 0.0014,
       "compliance": 0.0,
-      "adjacency": 0.1642,
-      "balance": 0.0016
+      "adjacency": 0.0529,
+      "balance": -0.2078
     },
     "val": {
-      "total": 8.1435,
-      "coords": 0.0389,
-      "types": 8.019,
+      "total": 14.808,
+      "coords": 0.0206,
+      "types": 14.6626,
       "compliance": 0.0,
-      "adjacency": 0.4272,
-      "balance": 0.0016
+      "adjacency": 0.728,
+      "balance": -0.2079
     },
-    "lr": 0.0009046039886902864,
-    "elapsed_s": 36.7
+    "lr": 0.0002949059110302156,
+    "elapsed_s": 182.0
   },
   {
     "epoch": 12,
     "train": {
-      "total": 0.0939,
-      "coords": 0.0352,
-      "types": 0.0267,
+      "total": 0.0028,
+      "coords": 0.0115,
+      "types": 0.0015,
       "compliance": 0.0,
-      "adjacency": 0.1591,
-      "balance": 0.0012
+      "adjacency": 0.0532,
+      "balance": -0.2079
     },
     "val": {
-      "total": 8.5025,
-      "coords": 0.035,
-      "types": 8.3897,
+      "total": 17.7857,
+      "coords": 0.0308,
+      "types": 17.3417,
       "compliance": 0.0,
-      "adjacency": 0.389,
-      "balance": 0.0008
+      "adjacency": 2.1697,
+      "balance": -0.2079
     },
-    "lr": 0.0008853713647665069,
-    "elapsed_s": 36.9
+    "lr": 0.0002938435503627948,
+    "elapsed_s": 184.9
   },
   {
     "epoch": 13,
     "train": {
-      "total": 0.0818,
-      "coords": 0.0341,
-      "types": 0.0171,
+      "total": 0.0019,
+      "coords": 0.0108,
+      "types": 0.0012,
       "compliance": 0.0,
-      "adjacency": 0.1528,
-      "balance": 0.0009
+      "adjacency": 0.0531,
+      "balance": -0.2078
     },
     "val": {
-      "total": 8.7686,
-      "coords": 0.0337,
-      "types": 8.6535,
+      "total": 18.1532,
+      "coords": 0.0332,
+      "types": 17.6564,
       "compliance": 0.0,
-      "adjacency": 0.4067,
-      "balance": 0.0007
+      "adjacency": 2.4222,
+      "balance": -0.2078
     },
-    "lr": 0.0008646198293969952,
-    "elapsed_s": 38.4
+    "lr": 0.00029268294918612537,
+    "elapsed_s": 180.3
   },
   {
     "epoch": 14,
     "train": {
-      "total": 0.0767,
-      "coords": 0.0329,
-      "types": 0.0136,
+      "total": 0.0012,
+      "coords": 0.0105,
+      "types": 0.0009,
       "compliance": 0.0,
-      "adjacency": 0.1505,
-      "balance": 0.0007
+      "adjacency": 0.0528,
+      "balance": -0.2079
     },
     "val": {
-      "total": 8.4683,
-      "coords": 0.0324,
-      "types": 8.3137,
+      "total": 18.8518,
+      "coords": 0.0335,
+      "types": 18.4502,
       "compliance": 0.0,
-      "adjacency": 0.6103,
-      "balance": 0.0009
+      "adjacency": 1.9446,
+      "balance": -0.2079
     },
-    "lr": 0.0008424312794113801,
-    "elapsed_s": 37.4
+    "lr": 0.0002914249029182806,
+    "elapsed_s": 182.6
   },
   {
     "epoch": 15,
     "train": {
-      "total": 0.0804,
-      "coords": 0.032,
-      "types": 0.0177,
+      "total": 0.0011,
+      "coords": 0.0104,
+      "types": 0.0009,
       "compliance": 0.0,
-      "adjacency": 0.1531,
-      "balance": 0.0013
+      "adjacency": 0.0528,
+      "balance": -0.2079
     },
     "val": {
-      "total": 8.4482,
-      "coords": 0.0321,
-      "types": 8.3229,
+      "total": 19.6098,
+      "coords": 0.0349,
+      "types": 18.8223,
       "compliance": 0.0,
-      "adjacency": 0.4658,
-      "balance": 0.0008
+      "adjacency": 3.8668,
+      "balance": -0.2079
     },
-    "lr": 0.0008188932828794706,
-    "elapsed_s": 37.8
+    "lr": 0.00029007027376133155,
+    "elapsed_s": 186.6
   },
   {
     "epoch": 16,
     "train": {
-      "total": 0.0711,
-      "coords": 0.0311,
-      "types": 0.0109,
+      "total": 0.0009,
+      "coords": 0.0102,
+      "types": 0.0009,
       "compliance": 0.0,
-      "adjacency": 0.1452,
-      "balance": 0.0007
+      "adjacency": 0.0528,
+      "balance": -0.2079
     },
     "val": {
-      "total": 8.6345,
-      "coords": 0.0306,
-      "types": 8.4871,
+      "total": 18.6517,
+      "coords": 0.0344,
+      "types": 17.7896,
       "compliance": 0.0,
-      "adjacency": 0.584,
-      "balance": 0.0005
+      "adjacency": 4.2425,
+      "balance": -0.2079
     },
-    "lr": 0.0007940987335200906,
-    "elapsed_s": 37.8
+    "lr": 0.00028861999011043726,
+    "elapsed_s": 180.5
+  },
+  {
+    "epoch": 17,
+    "train": {
+      "total": 0.0008,
+      "coords": 0.0101,
+      "types": 0.0009,
+      "compliance": 0.0,
+      "adjacency": 0.0529,
+      "balance": -0.2079
+    },
+    "val": {
+      "total": 18.5323,
+      "coords": 0.0353,
+      "types": 17.0929,
+      "compliance": 0.0,
+      "adjacency": 7.1245,
+      "balance": -0.2079
+    },
+    "lr": 0.0002870750459175687,
+    "elapsed_s": 177.3
+  },
+  {
+    "epoch": 18,
+    "train": {
+      "total": 0.0002,
+      "coords": 0.0099,
+      "types": 0.0006,
+      "compliance": 0.0,
+      "adjacency": 0.0526,
+      "balance": -0.2079
+    },
+    "val": {
+      "total": 19.818,
+      "coords": 0.0384,
+      "types": 19.0907,
+      "compliance": 0.0,
+      "adjacency": 3.5489,
+      "balance": -0.2079
+    },
+    "lr": 0.00028543650001030407,
+    "elapsed_s": 178.1
+  },
+  {
+    "epoch": 19,
+    "train": {
+      "total": 0.0002,
+      "coords": 0.0097,
+      "types": 0.0007,
+      "compliance": 0.0,
+      "adjacency": 0.0527,
+      "balance": -0.2079
+    },
+    "val": {
+      "total": 19.536,
+      "coords": 0.0386,
+      "types": 18.9012,
+      "compliance": 0.0,
+      "adjacency": 3.0848,
+      "balance": -0.2079
+    },
+    "lr": 0.0002837054753661609,
+    "elapsed_s": 194.6
+  },
+  {
+    "epoch": 20,
+    "train": {
+      "total": -0.0002,
+      "coords": 0.0096,
+      "types": 0.0005,
+      "compliance": 0.0,
+      "adjacency": 0.0525,
+      "balance": -0.2079
+    },
+    "val": {
+      "total": 19.3233,
+      "coords": 0.0389,
+      "types": 18.1091,
+      "compliance": 0.0,
+      "adjacency": 5.9806,
+      "balance": -0.2079
+    },
+    "lr": 0.00028188315834296377,
+    "elapsed_s": 182.1
+  },
+  {
+    "epoch": 21,
+    "train": {
+      "total": -0.0,
+      "coords": 0.0095,
+      "types": 0.0008,
+      "compliance": 0.0,
+      "adjacency": 0.0526,
+      "balance": -0.2079
+    },
+    "val": {
+      "total": 18.7589,
+      "coords": 0.0385,
+      "types": 17.7415,
+      "compliance": 0.0,
+      "adjacency": 4.9981,
+      "balance": -0.2079
+    },
+    "lr": 0.00027997079786577355,
+    "elapsed_s": 187.4
+  },
+  {
+    "epoch": 22,
+    "train": {
+      "total": -0.0003,
+      "coords": 0.0094,
+      "types": 0.0006,
+      "compliance": 0.0,
+      "adjacency": 0.0526,
+      "balance": -0.2079
+    },
+    "val": {
+      "total": 18.8037,
+      "coords": 0.0385,
+      "types": 17.5813,
+      "compliance": 0.0,
+      "adjacency": 6.0236,
+      "balance": -0.2079
+    },
+    "lr": 0.00027796970457093673,
+    "elapsed_s": 188.6
+  },
+  {
+    "epoch": 23,
+    "train": {
+      "total": -0.0006,
+      "coords": 0.0092,
+      "types": 0.0005,
+      "compliance": 0.0,
+      "adjacency": 0.0524,
+      "balance": -0.2079
+    },
+    "val": {
+      "total": 19.4811,
+      "coords": 0.0392,
+      "types": 18.2687,
+      "compliance": 0.0,
+      "adjacency": 5.9702,
+      "balance": -0.2079
+    },
+    "lr": 0.00027588124990784085,
+    "elapsed_s": 189.4
+  },
+  {
+    "epoch": 24,
+    "train": {
+      "total": -0.0004,
+      "coords": 0.0093,
+      "types": 0.0005,
+      "compliance": 0.0,
+      "adjacency": 0.0527,
+      "balance": -0.2079
+    },
+    "val": {
+      "total": 20.8301,
+      "coords": 0.0416,
+      "types": 19.6073,
+      "compliance": 0.0,
+      "adjacency": 6.0101,
+      "balance": -0.2079
+    },
+    "lr": 0.0002737068651989913,
+    "elapsed_s": 204.0
   }
 ]
